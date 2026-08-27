@@ -15,12 +15,14 @@
     "baseUrl": ".",
     "paths": {
       "@compute-experience/core": ["packages/core/src/index.ts"],
-      "@compute-experience/renderers": ["packages/renderers/src/index.ts"]
+      "@compute-experience/renderers": ["packages/renderers/src/index.ts"],
+      "@compute-experience/ui": ["packages/ui/src/index.ts"]
     }
   },
   "include": [
     "packages/core/src",
     "packages/renderers/src",
+    "packages/ui/src",
     "playground/src",
     "examples",
     "tests/js",

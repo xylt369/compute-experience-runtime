@@ -20,6 +20,7 @@ This is **not** an AI platform. There is no LLM integration, authentication, clo
 | --- | --- |
 | `packages/core` | `@compute-experience/core` — model protocol, timeline, player, snapshots, `createRuntime()` |
 | `packages/renderers` | `@compute-experience/renderers` — trajectory, pendulum, and timeseries renderers + registry |
+| `packages/ui` | `@compute-experience/ui` — manifest-driven parameter, metric, and transport panels |
 | `playground/` | Browser demo that **consumes** the runtime (not the runtime itself) |
 | `examples/` | Model definitions using `defineModel()` |
 | `bridge/` + Python under `examples/` | Authoring protocol for offline NDJSON export (not the live browser backend) |
@@ -79,6 +80,7 @@ The manifest drives parameter controls in the playground. Do not hardcode slider
 ```typescript
 import { createRuntime, defaultParameters } from "@compute-experience/core";
 import { createRendererRegistry } from "@compute-experience/renderers";
+import { mountExperienceUI } from "@compute-experience/ui";
 
 const runtime = createRuntime({
   model: myModel,
@@ -86,12 +88,17 @@ const runtime = createRuntime({
   parameters: defaultParameters(myModel),
 });
 
-runtime.subscribe((event) => {
-  if (event.type === "frame") console.log(event.frame.t);
+mountExperienceUI({
+  runtime,
+  elements: {
+    params: document.getElementById("params")!,
+    metrics: document.getElementById("metrics")!,
+    viewport: document.getElementById("viewport")!,
+    play: document.getElementById("play") as HTMLButtonElement,
+    scrub: document.getElementById("scrub") as HTMLInputElement,
+    time: document.getElementById("time")!,
+  },
 });
-
-runtime.mount({ viewport: document.getElementById("viewport")! });
-runtime.play();
 ```
 
 Public API (stable surface):
@@ -189,7 +196,7 @@ Schema: `packages/core/src/protocol/manifest-schema.json` (also mirrored at `run
 ## Roadmap (current focus)
 
 - **Phase 1 (done):** Extract runtime core from the playground app
-- **Phase 2:** Manifest-driven UI — zero hardcoded parameter/metric panels in playground
+- **Phase 2 (done):** Manifest-driven UI via `@compute-experience/ui`
 - **Phase 3:** `examples/custom-model` — third-party developer writes only the model, no UI
 
 ## Deliberate non-goals

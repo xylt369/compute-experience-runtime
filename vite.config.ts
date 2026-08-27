@@ -10,6 +10,7 @@ export default defineConfig({
     alias: {
       "@compute-experience/core": resolve(rootDir, "packages/core/src"),
       "@compute-experience/renderers": resolve(rootDir, "packages/renderers/src"),
+      "@compute-experience/ui": resolve(rootDir, "packages/ui/src"),
     },
   },
   test: {
@@ -18,6 +19,7 @@ export default defineConfig({
     alias: {
       "@compute-experience/core": resolve(rootDir, "packages/core/src"),
       "@compute-experience/renderers": resolve(rootDir, "packages/renderers/src"),
+      "@compute-experience/ui": resolve(rootDir, "packages/ui/src"),
     },
   },
 });

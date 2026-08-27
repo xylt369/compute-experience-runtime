@@ -1,8 +1,6 @@
 import {
   createRuntime,
   defaultParameters,
-  formatMetricValue,
-  metricKeys,
   type ComputeRuntime,
   type ExperienceSnapshot,
   downloadSnapshot,
@@ -11,6 +9,7 @@ import {
   writeStoredSnapshot,
 } from "@compute-experience/core";
 import { createRendererRegistry } from "@compute-experience/renderers";
+import { mountExperienceUI, type ExperienceHandle } from "@compute-experience/ui";
 import { models } from "../../examples";
 import "./styles.css";
 
@@ -43,6 +42,7 @@ const els = {
 
 let currentId = Object.keys(models)[0]!;
 let runtime: ComputeRuntime | null = null;
+let experience: ExperienceHandle | null = null;
 
 function setDrawer(open: boolean) {
   els.sidebar.classList.toggle("open", open);
@@ -57,76 +57,11 @@ function flash(button: HTMLButtonElement, label: string) {
   }, 900);
 }
 
-function renderParams() {
-  if (!runtime) return;
-  const { manifest } = runtime;
-  els.params.replaceChildren();
-  for (const parameter of manifest.parameters) {
-    const box = document.createElement("div");
-    box.className = "param";
-    const valueId = `pv-${parameter.id}`;
-    box.innerHTML = `
-      <div class="param-head">
-        <span>${parameter.label}</span>
-        <span class="param-value" id="${valueId}"></span>
-      </div>
-      <input class="range" id="pi-${parameter.id}" type="range" min="${parameter.min}" max="${parameter.max}" step="${parameter.step}" value="${runtime.parameters[parameter.id]}">
-    `;
-    els.params.appendChild(box);
-    const input = box.querySelector("input")!;
-    const value = box.querySelector<HTMLElement>(`#${valueId}`)!;
-    const fmt = () => {
-      const n = Number(runtime!.parameters[parameter.id]);
-      const digits = (parameter.step ?? 1) < 0.1 ? 2 : (parameter.step ?? 1) < 1 ? 1 : 0;
-      value.textContent = `${n.toFixed(digits)}${parameter.unit ? ` ${parameter.unit}` : ""}`;
-    };
-    input.addEventListener("input", () => {
-      runtime!.setParameters({ [parameter.id]: Number(input.value) });
-      fmt();
-    });
-    fmt();
-  }
-}
-
-function renderMetrics(frame: { state: Record<string, number>; derived?: Record<string, number> }) {
-  if (!runtime) return;
-  const keys = metricKeys(runtime.manifest);
-  els.metrics.replaceChildren();
-  for (const key of keys) {
-    const raw = frame.state[key] ?? frame.derived?.[key];
-    const metric = document.createElement("div");
-    metric.className = "metric";
-    metric.innerHTML = `<small>${key}</small><strong>${typeof raw === "number" ? formatMetricValue(key, raw) : "—"}</strong>`;
-    els.metrics.appendChild(metric);
-  }
-}
-
-function syncChrome() {
-  if (!runtime) return;
-  const { manifest } = runtime;
-  els.modelName.textContent = manifest.name;
-  els.modelDesc.textContent = manifest.description;
-  els.modelId.textContent = manifest.id;
-  els.rendererPill.textContent = `renderer: ${manifest.renderer}`;
-  els.scrub.max = String(Math.max(0, runtime.timeline.length - 1));
-  els.stateCount.textContent = `${runtime.timeline.length} states`;
-}
-
-function onRuntimeEvent() {
-  if (!runtime) return;
-  const frame = runtime.currentFrame();
-  if (!frame) return;
-  els.scrub.value = String(runtime.currentIndex());
-  els.time.textContent = `${frame.t.toFixed(2)} ${runtime.model.time?.unit ?? "s"}`;
-  els.play.textContent = runtime.isPlaying() ? "❚❚" : "▶";
-  renderMetrics(frame);
-}
-
 function attachRuntime(modelId: string, options?: { params?: Record<string, number>; snapshot?: ExperienceSnapshot }) {
   const model = models[modelId];
   if (!model) throw new Error(`Unknown model: ${modelId}`);
 
-  runtime?.unmount();
+  experience?.dispose();
   currentId = modelId;
 
   runtime = createRuntime({
@@ -135,27 +70,29 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     parameters: options?.params ?? defaultParameters(model),
   });
 
-  runtime.subscribe((event) => {
-    if (event.type === "rebuild") {
-      syncChrome();
-      renderParams();
-    }
-    if (event.type === "parameters") {
-      renderParams();
-    }
-    if (event.type === "frame" || event.type === "rebuild") {
-      onRuntimeEvent();
-    }
+  experience = mountExperienceUI({
+    runtime,
+    elements: {
+      modelName: els.modelName,
+      modelDesc: els.modelDesc,
+      modelId: els.modelId,
+      params: els.params,
+      metrics: els.metrics,
+      stateCount: els.stateCount,
+      rendererPill: els.rendererPill,
+      viewport: els.viewport,
+      overlay: els.overlay,
+      play: els.play,
+      scrub: els.scrub,
+      time: els.time,
+    },
   });
 
   els.modelSelect.value = modelId;
-  syncChrome();
-  renderParams();
-
-  runtime.mount({ viewport: els.viewport, overlay: els.overlay });
 
   if (options?.snapshot) {
     runtime.restore(options.snapshot);
+    experience.sync();
   }
 }
 
@@ -171,8 +108,6 @@ els.modelSelect.addEventListener("change", () => {
   attachRuntime(els.modelSelect.value);
 });
 els.reset.addEventListener("click", () => attachRuntime(currentId));
-els.scrub.addEventListener("input", () => runtime?.seekIndex(Number(els.scrub.value)));
-els.play.addEventListener("click", () => runtime?.toggle());
 els.save.addEventListener("click", () => {
   if (!runtime) return;
   writeStoredSnapshot(runtime.snapshot(false));

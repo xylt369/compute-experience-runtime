@@ -30,6 +30,7 @@ describe("JS model manifests", () => {
     expect(appSource).not.toMatch(/modelId\s*===\s*['"`]/);
     expect(appSource).not.toMatch(/currentId\s*===\s*['"`]/);
     expect(appSource).not.toMatch(/if\s*\(\s*model\.manifest\.id/);
-    expect(appSource).toMatch(/createRuntime\(/);
+    expect(appSource).toMatch(/mountExperienceUI\(/);
+    expect(appSource).not.toMatch(/renderParams|renderMetrics|formatMetricValue/);
   });
 });
