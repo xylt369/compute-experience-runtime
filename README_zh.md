@@ -210,15 +210,3 @@ python bridge/author.py examples/rossler_model.py \
 
 模式定义 (Schema)：`packages/core/src/protocol/manifest-schema.json`（在 `runtime/authoring.schema.json` 亦有镜像）。
 
-## 路线图 (Roadmap - 当前重点)
-
-- **Phase 1（已完成）:** 从 Playground 应用中抽离 runtime 核心库
-- **Phase 2（已完成）:** 通过 `@compute-experience/ui` 实现基于清单驱动的 UI
-- **Phase 3（已完成）:** `examples/custom-model` —— 第三方开发者仅编写模型，无需编写 UI
-
-## 明确的非目标 (Deliberate non-goals)
-
-- AI / 大语言模型 (LLM) 代码生成
-- 身份验证、账户系统、数据库、云端托管部署
-- WebGPU 迁移、高级 3D 编辑器、任意代码执行环境
-- Python 实时计算桥接（WASM / 热重载）—— 属于未来规划
