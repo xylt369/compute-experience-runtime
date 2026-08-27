@@ -15,7 +15,7 @@ export const rossler: ModelDefinition = {
     state: ["x", "y", "z"],
     derived: ["radius"],
   },
-  time: { steps: 900, dt: 0.03, playbackRate: 3 },
+  time: { steps: 900, dt: 0.03, playbackRate: 3, unit: "s" },
   initial() {
     return { x: 0.1, y: 0, z: 0 };
   },

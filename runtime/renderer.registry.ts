@@ -12,6 +12,7 @@ export interface RendererView<Frame = ModelFrame, Manifest = ModelManifest> {
   cursor: number;
   trail: number;
   manifest: Manifest;
+  params: Record<string, number>;
 }
 
 export interface RuntimeRenderer<Frame = ModelFrame, Manifest = ModelManifest> {

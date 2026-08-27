@@ -15,7 +15,7 @@ export const lorenz: ModelDefinition = {
     state: ["x", "y", "z"],
     derived: ["radius"],
   },
-  time: { steps: 900, dt: 0.01, playbackRate: 1.5 },
+  time: { steps: 900, dt: 0.01, playbackRate: 1.5, unit: "s" },
   initial() {
     return { x: 1, y: 1, z: 1 };
   },

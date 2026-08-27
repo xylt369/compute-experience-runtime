@@ -52,7 +52,7 @@ export const sir: ModelDefinition = {
     state: ["susceptible", "infected", "recovered"],
     derived: ["infectedFraction", "reproductionNumber", "peakRisk"],
   },
-  time: { steps: 900, dt: 0.25, playbackRate: 25 },
+  time: { steps: 900, dt: 0.25, playbackRate: 25, unit: "d" },
   initial(parameters = {}) {
     const n = Math.max(1, Number(parameters.population ?? 1000));
     const i0 = Math.min(n, Math.max(0, Number(parameters.initialInfected ?? 10)));

@@ -16,7 +16,7 @@ export const pendulum: ModelDefinition = {
     state: ["angle", "angularVelocity"],
     derived: ["period", "angularFrequency"],
   },
-  time: { steps: 900, dt: 0.016, playbackRate: 2 },
+  time: { steps: 900, dt: 0.016, playbackRate: 2, unit: "s" },
   initial(parameters = {}) {
     const deg = Number(parameters.angle ?? 28);
     return { angle: (deg * Math.PI) / 180, angularVelocity: 0 };

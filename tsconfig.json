@@ -12,10 +12,7 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "types": ["vite/client"],
-    "baseUrl": ".",
-    "paths": {
-      "@runtime/*": ["runtime/*"]
-    }
+    "baseUrl": "."
   },
   "include": ["runtime", "web", "tests/js", "vite.config.ts"]
 }

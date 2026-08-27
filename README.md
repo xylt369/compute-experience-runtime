@@ -2,16 +2,56 @@
 
 > Turn computation into an interactive experience.
 
-Compute Experience is an experimental, open runtime for making computational models feel like **objects you can inspect, manipulate, replay, and share** rather than static charts or notebook outputs.
+Compute Experience is an experimental runtime for making computational models feel like **objects you can inspect, manipulate, replay, and share** rather than static charts or notebook outputs.
 
-## Current proof
+The central boundary is:
 
-The same manifest/state contract now drives two different chaotic dynamical systems:
+```text
+Model ≠ Experience
+```
 
-- `lorenz-attractor`
-- `rossler-attractor`
+A model owns computation and state transitions. The runtime owns playback and interaction. A renderer owns how state becomes understandable.
 
-The browser experience is manifest-driven: parameter controls come from the manifest, state is replayed through a runtime player, and a renderer is selected by `renderer` rather than hard-coded to a model implementation.
+## What this demo is
+
+The page is a static instrument. It computes **in the browser** from four JavaScript models that follow the same `{manifest, initial, step, derive}` contract as the Python examples. Switching models only changes the catalog entry; the shell asks the manifest for a renderer name.
+
+| Model | Renderer |
+| --- | --- |
+| Lorenz attractor | `trajectory-3d` |
+| Rössler attractor | `trajectory-3d` |
+| Simple pendulum (nonlinear ODE) | `pendulum-2d` |
+| SIR epidemic | `timeseries-2d` |
+
+Python under `examples/` and `bridge/` is the **authoring protocol**, not the live compute backend for this demo. Precomputed JSON files can be imported as a recorded snapshot; they are not required to open the page.
+
+## Run the instrument
+
+```bash
+npm install
+npm run dev
+```
+
+Then open the URL Vite prints (usually `http://localhost:5173`).
+
+```bash
+npm run build
+npm run preview
+```
+
+## Tests
+
+Browser runtime (manifest schema, player, renderer registry):
+
+```bash
+npm test
+```
+
+Python protocol (unchanged this milestone):
+
+```bash
+python -m pytest -q
+```
 
 ## Authoring protocol
 
@@ -25,7 +65,7 @@ def step(state, parameters, dt): ...
 def derive(state, parameters): ...  # optional
 ```
 
-Run an authored model as NDJSON:
+The JavaScript models in `web/src/models/` use the same field names. Run an authored Python model as NDJSON:
 
 ```bash
 python bridge/author.py examples/rossler_model.py \
@@ -35,37 +75,29 @@ python bridge/author.py examples/rossler_model.py \
 
 The runtime schema lives in `runtime/authoring.schema.json`.
 
-## Run tests
-
-```bash
-python -m pytest -q
-```
-
 ## Architecture
 
 ```text
-model source
+model source (JS demo / Python protocol)
     ↓
 manifest + state model
-    ↓
-validator / adapter
     ↓
 state frames
     ↓
 runtime player
     ↓
-renderer registry
+renderer registry (by name)
     ↓
 interactive experience
 ```
 
-The key boundary is:
+Snapshots are a shareable object:
 
-```text
-Model ≠ Experience
+```json
+{ "model": "lorenz-attractor", "params": {}, "cursor": 0, "savedAt": "...", "frames": [] }
 ```
 
-A model owns computation and state transitions. The runtime owns playback and interaction contracts. A renderer owns how state becomes understandable.
+`frames` is optional. Restore reads `localStorage`; Export / Import move the same object as JSON.
 
 ## Product thesis
 
@@ -75,15 +107,9 @@ Not:
 
 `code → chart`
 
-## Deliberate non-goals
+## Deliberate non-goals (this milestone)
 
-- generic AI app builder
-- chat UI
-- generic dashboard generator
-- arbitrary untrusted code execution
-- cloud platform
+- Python live compute bridge, WASM, SDK packaging
+- React, dashboards, chat, AI generation
+- robot arm, streaming data, comparison branches, cloud
 - a full 3D engine
-
-## What this milestone proves
-
-A third-party model can be authored without writing the experience UI. The Rössler example is deliberately independent from the original Lorenz implementation while reusing the same runtime contract.

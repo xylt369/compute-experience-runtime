@@ -20,6 +20,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
   private camera: Camera = { ...DEFAULT_CAMERA };
   private drag: { x: number; y: number; rx: number; ry: number } | null = null;
   private trailBtn: HTMLButtonElement | null = null;
+  private trail = 1;
   private bounds = { cx: 0, cy: 0, cz: 0, extent: 1 };
   private ro: ResizeObserver | null = null;
 
@@ -87,11 +88,9 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
   }
 
   update(view: RendererView<ModelFrame, ModelManifest>): void {
-    const trailChanged = this.view?.trail !== view.trail;
     const framesChanged = this.view?.frames !== view.frames;
     this.view = view;
     if (framesChanged) this.recomputeBounds();
-    if (trailChanged) this.syncTrailLabel();
     this.draw();
   }
 
@@ -128,18 +127,15 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
       this.draw();
     });
     this.trailBtn?.addEventListener("click", () => {
-      if (!this.view) return;
-      const next = this.view.trail >= 0.99 ? 0.25 : this.view.trail >= 0.5 ? 1 : 0.5;
-      this.view = { ...this.view, trail: next };
+      this.trail = this.trail >= 0.99 ? 0.25 : this.trail >= 0.5 ? 1 : 0.5;
       this.syncTrailLabel();
       this.draw();
     });
+    this.syncTrailLabel();
   }
 
   private syncTrailLabel() {
-    if (this.trailBtn && this.view) {
-      this.trailBtn.textContent = `Trail ${Math.round(this.view.trail * 100)}%`;
-    }
+    if (this.trailBtn) this.trailBtn.textContent = `Trail ${Math.round(this.trail * 100)}%`;
   }
 
   private recomputeBounds() {
@@ -195,7 +191,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     const height = this.target?.clientHeight ?? 0;
     ctx.clearRect(0, 0, width, height);
 
-    const keep = Math.max(2, Math.floor((view.cursor + 1) * view.trail));
+    const keep = Math.max(2, Math.floor((view.cursor + 1) * this.trail));
     const start = Math.max(0, view.cursor + 1 - keep);
     const slice = view.frames.slice(start, view.cursor + 1);
     if (slice.length < 2) {

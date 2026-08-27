@@ -37,6 +37,7 @@ export interface ModelTime {
   steps: number;
   dt: number;
   playbackRate?: number;
+  unit?: string;
 }
 
 export interface ModelDefinition {

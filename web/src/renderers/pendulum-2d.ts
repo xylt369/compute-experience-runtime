@@ -27,18 +27,16 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
   private angleEl: HTMLElement | null = null;
   private omegaEl: HTMLElement | null = null;
   private trailBtn: HTMLButtonElement | null = null;
+  private trail = 1;
   private ro: ResizeObserver | null = null;
 
   private readonly onPointerDown = (e: PointerEvent) => {
     if (!this.canvas) return;
     const layout = this.layout();
     if (!layout) return;
-    const p = this.eventPoint(e);
-    const bob = this.bobPoint(this.currentAngle(), layout);
-    const dist = Math.hypot(p.x - bob.x, p.y - bob.y);
-    if (dist > 36) return;
     this.dragging = true;
     this.canvas.setPointerCapture(e.pointerId);
+    const p = this.eventPoint(e);
     this.lastSample = { t: e.timeStamp, angle: this.angleFromPoint(p, layout) };
     this.live = { angle: this.lastSample.angle, angularVelocity: 0 };
     this.draw();
@@ -121,10 +119,8 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
   }
 
   update(view: RendererView<ModelFrame, ModelManifest>): void {
-    const trailChanged = this.view?.trail !== view.trail;
     this.view = view;
     if (!this.dragging) this.live = null;
-    if (trailChanged) this.syncTrailLabel();
     this.draw();
     this.syncHud();
   }
@@ -158,18 +154,15 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
     this.omegaEl = this.overlay.querySelector('[data-role="omega"]');
     this.trailBtn = this.overlay.querySelector('[data-act="trail"]');
     this.trailBtn?.addEventListener("click", () => {
-      if (!this.view) return;
-      const next = this.view.trail >= 0.99 ? 0.25 : this.view.trail >= 0.5 ? 1 : 0.5;
-      this.view = { ...this.view, trail: next };
+      this.trail = this.trail >= 0.99 ? 0.25 : this.trail >= 0.5 ? 1 : 0.5;
       this.syncTrailLabel();
       this.draw();
     });
+    this.syncTrailLabel();
   }
 
   private syncTrailLabel() {
-    if (this.trailBtn && this.view) {
-      this.trailBtn.textContent = `Trail ${Math.round(this.view.trail * 100)}%`;
-    }
+    if (this.trailBtn) this.trailBtn.textContent = `Trail ${Math.round(this.trail * 100)}%`;
   }
 
   private syncHud() {
@@ -193,16 +186,10 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
     if (!this.target || !this.view) return null;
     const width = this.target.clientWidth;
     const height = this.target.clientHeight;
-    const length = Number(this.view.manifest.parameters.find((p) => p.id === "length")?.default ?? 1.6);
-    const liveLength = this.readParam("length", length);
+    const liveLength = this.view.params.length ?? 1.6;
     const pivot = { x: width * 0.5, y: height * 0.2 };
     const px = Math.min(width, height) * 0.34 * (liveLength / 3);
     return { width, height, pivot, px, length: liveLength };
-  }
-
-  private readParam(id: string, fallback: number) {
-    const param = this.view?.manifest.parameters.find((p) => p.id === id);
-    return typeof param?.default === "number" ? param.default : fallback;
   }
 
   private eventPoint(e: PointerEvent) {
@@ -235,7 +222,7 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
     ctx.lineTo(layout.pivot.x + 28, layout.pivot.y);
     ctx.stroke();
 
-    const keep = Math.max(2, Math.floor((view.cursor + 1) * view.trail));
+    const keep = Math.max(2, Math.floor((view.cursor + 1) * this.trail));
     const start = Math.max(0, view.cursor + 1 - keep);
     const slice = view.frames.slice(start, view.cursor + 1);
     if (slice.length > 1) {
