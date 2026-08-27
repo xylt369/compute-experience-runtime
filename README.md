@@ -208,16 +208,3 @@ python bridge/author.py examples/rossler_model.py \
 ```
 
 Schema: `packages/core/src/protocol/manifest-schema.json` (also mirrored at `runtime/authoring.schema.json`).
-
-## Roadmap (current focus)
-
-- **Phase 1 (done):** Extract runtime core from the playground app
-- **Phase 2 (done):** Manifest-driven UI via `@compute-experience/ui`
-- **Phase 3 (done):** `examples/custom-model` — third-party developer writes only the model, no UI
-
-## Deliberate non-goals
-
-- AI / LLM model generation
-- Authentication, accounts, database, cloud deployment
-- WebGPU migration, advanced 3D editor, arbitrary code execution
-- Python live compute bridge (WASM / hot reload) — future work
