@@ -8,11 +8,22 @@ export type {
   RuntimeMountTarget,
 } from "./runtime";
 
+export { ComputationalRun } from "./run";
+export type { CreateRunOptions, Run, RunListener, RunMeta, RunSnapshotData } from "./run";
+
+export {
+  compare,
+  compareRuns,
+  fieldDelta,
+  recordDeltas,
+} from "./compare";
+export type { FieldDelta, ParameterDiff, RunComparison } from "./compare";
+
 export { defaultParameters, formatMetricValue, metricKeys } from "./manifest";
 export { Timeline } from "./timeline";
 export { Player, ModelPlayer } from "./player";
 export type { PlayerClock } from "./player";
-export { simulate } from "./simulate";
+export { continueSimulate, simulate } from "./simulate";
 export {
   SNAPSHOT_STORAGE_KEY,
   deserializeSnapshot,
@@ -35,6 +46,7 @@ export type {
   ModelTime,
   ModelTimeConfig,
   ParameterType,
+  RunSnapshot,
   StateFrame,
 } from "./protocol/types";
 
@@ -42,6 +54,7 @@ export type {
   RendererMountOptions,
   RendererRegistry,
   RendererView,
+  RunRenderView,
   RuntimeRenderer,
 } from "./renderers/types";
 export { resolveRenderer, rendererFor } from "./renderers/types";

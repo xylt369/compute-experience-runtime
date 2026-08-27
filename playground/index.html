@@ -12,6 +12,8 @@
       <div class="actions">
         <button class="control drawer-toggle" id="drawerToggle" type="button">Params</button>
         <select class="control" id="modelSelect"></select>
+        <button class="control" id="fork" type="button">Fork</button>
+        <button class="control" id="clearBranch" type="button">Clear branch</button>
         <button class="control" id="reset" type="button">Reset</button>
         <button class="control" id="save" type="button">Save</button>
         <button class="control" id="restore" type="button">Restore</button>
@@ -32,7 +34,7 @@
       <main class="main">
         <div class="subbar">
           <span id="modelId">—</span>
-          <span id="runtimeLabel">manifest → frames → renderer</span>
+          <span id="runtimeLabel">model → run → fork → experience</span>
         </div>
         <div class="stage">
           <div class="grid"></div>
@@ -50,10 +52,10 @@
         </div>
         <footer class="footer">
           <div class="footer-copy">
-            <div class="footer-kicker">Runtime boundary</div>
-            <p>Developers author computation; the runtime turns model state into a replayable, inspectable experience. The UI is generated from the manifest. This demo computes in the browser; Python examples document the authoring protocol.</p>
+            <div class="footer-kicker">Computational runs</div>
+            <p>A model defines rules. A run is one navigable history. Fork creates an independent branch that can diverge. Compare shows the difference.</p>
           </div>
-          <div class="footer-code">model → state → experience</div>
+          <div class="footer-code">model → run → experience</div>
         </footer>
       </main>
     </div>

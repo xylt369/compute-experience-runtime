@@ -5,15 +5,29 @@
 > 只管编写模型，交互体验交给运行时。
 > (Write the model. Let the runtime handle the experience.)
 
-Compute Experience Runtime 是一个开源库，用于将计算模型转化为可交互的数字化体验。开发者只需定义“**计算什么**”（what to compute）；运行时负责处理回放、状态、参数、时间线、快照以及渲染器选择。
+Compute Experience Runtime 是一个开源库，用于将计算模型转化为可交互的数字化体验。开发者只需定义“**计算什么**”；运行时拥有 **Run**——可导航、可分叉的执行历史——并将其转化为体验。
 
 核心边界：
 
 ```text
-Model ≠ Experience (模型 ≠ 体验)
+Model ≠ Run ≠ Experience
 
-Model (模型)  →  State (状态)  →  Runtime (运行时)  →  Experience (体验)
+Model
+  ↓
+Run
+  ↓
+State History
+  ↓
+Fork / Intervene / Compare
+  ↓
+Experience
 ```
+
+- **Model（模型）** — 计算规则（`initial` / `step` / `derive`）与清单
+- **Run（运行）** — 在特定参数与状态下的一次具体执行历史
+- **Experience（体验）** — 对一个或多个 Run 的回放、检视与比较
+
+计算不是一次性的函数调用。Run 是持久、可导航、可分叉的对象。
 
 本项目**不是** AI 平台。本仓库中没有 LLM 集成、身份验证、云端后端或账户系统。
 
@@ -21,7 +35,7 @@ Model (模型)  →  State (状态)  →  Runtime (运行时)  →  Experience (
 
 | 路径 | 职责 |
 | --- | --- |
-| `packages/core` | `@compute-experience/core` — 模型协议、时间线、播放控制器、快照及 `createRuntime()` |
+| `packages/core` | `@compute-experience/core` — 模型协议、Run、时间线、播放、分叉/比较、快照及 `createRuntime()` |
 | `packages/renderers` | `@compute-experience/renderers` — 轨迹 (trajectory)、摆动 (pendulum) 和时间序列 (timeseries) 渲染器 + 渲染器注册表 |
 | `packages/ui` | `@compute-experience/ui` — 基于清单 (manifest) 驱动的参数、指标和播放控制面板 |
 | `playground/` | **消费/调用**运行时的浏览器端演示 Playground（并非运行时本身） |

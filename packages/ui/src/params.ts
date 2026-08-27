@@ -22,7 +22,7 @@ export function bindParameterPanel(options: ParameterPanelOptions): ParameterPan
   };
 
   const unsubscribe = runtime.subscribe((event) => {
-    if (event.type === "rebuild" || event.type === "parameters") sync();
+    if (event.type === "rebuild" || event.type === "parameters" || event.type === "run-updated") sync();
   });
 
   sync();

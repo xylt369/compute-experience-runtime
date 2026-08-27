@@ -56,9 +56,29 @@ button, input, select { font: inherit; }
 .param-value { color: #68727b; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; }
 .range { width: 100%; accent-color: var(--accent); }
 .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 26px; }
-.metric { border: 1px solid var(--line); border-radius: 8px; background: #0a0e12; padding: 12px; }
-.metric small { display: block; color: #5f6972; text-transform: uppercase; letter-spacing: 0.11em; font-size: 9px; }
-.metric strong { display: block; margin-top: 8px; font-size: 15px; font-weight: 560; }
+.metric-delta strong { color: #d29c5c; }
+.compare-hint {
+  position: absolute;
+  right: 18px;
+  top: 48px;
+  color: #8a939c;
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.swatch-inline {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.swatch-inline.primary { background: #e8edf1; }
+.swatch-inline.branch { background: #d29c5c; }
+
 
 .main { display: flex; flex-direction: column; min-width: 0; }
 .subbar {

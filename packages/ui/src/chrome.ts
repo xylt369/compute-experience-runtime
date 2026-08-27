@@ -27,12 +27,23 @@ export function bindModelChrome(options: ModelChromeOptions): ModelChrome {
     elements.modelDesc && (elements.modelDesc.textContent = manifest.description);
     elements.modelId && (elements.modelId.textContent = manifest.id);
     elements.rendererPill && (elements.rendererPill.textContent = `renderer: ${manifest.renderer}`);
+    const branchCount = runtime.comparisonRuns?.length ?? 0;
     elements.stateCount &&
-      (elements.stateCount.textContent = `${runtime.timeline.length} states`);
+      (elements.stateCount.textContent =
+        branchCount > 0
+          ? `${runtime.timeline.length} states · ${branchCount + 1} runs`
+          : `${runtime.timeline.length} states`);
   };
 
   const unsubscribe = runtime.subscribe((event) => {
-    if (event.type === "rebuild" || event.type === "frame") sync();
+    if (
+      event.type === "rebuild" ||
+      event.type === "frame" ||
+      event.type === "run-forked" ||
+      event.type === "run-updated"
+    ) {
+      sync();
+    }
   });
 
   sync();

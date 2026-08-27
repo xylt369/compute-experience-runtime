@@ -17,6 +17,8 @@ const registry = createRendererRegistry();
 
 const els = {
   modelSelect: document.querySelector<HTMLSelectElement>("#modelSelect")!,
+  fork: document.querySelector<HTMLButtonElement>("#fork")!,
+  clearBranch: document.querySelector<HTMLButtonElement>("#clearBranch")!,
   reset: document.querySelector<HTMLButtonElement>("#reset")!,
   save: document.querySelector<HTMLButtonElement>("#save")!,
   restore: document.querySelector<HTMLButtonElement>("#restore")!,
@@ -57,6 +59,12 @@ function flash(button: HTMLButtonElement, label: string) {
   }, 900);
 }
 
+function syncBranchActions() {
+  const hasBranch = (runtime?.comparisonRuns.length ?? 0) > 0;
+  els.clearBranch.disabled = !hasBranch;
+  els.fork.textContent = hasBranch ? "Re-fork" : "Fork";
+}
+
 function attachRuntime(modelId: string, options?: { params?: Record<string, number>; snapshot?: ExperienceSnapshot }) {
   const model = models[modelId];
   if (!model) throw new Error(`Unknown model: ${modelId}`);
@@ -68,6 +76,7 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     model,
     rendererRegistry: registry,
     parameters: options?.params ?? defaultParameters(model),
+    syncPlayback: true,
   });
 
   experience = mountExperienceUI({
@@ -88,11 +97,19 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     },
   });
 
+  runtime.subscribe((event) => {
+    if (event.type === "run-forked" || event.type === "run-updated" || event.type === "rebuild") {
+      syncBranchActions();
+    }
+  });
+
   els.modelSelect.value = modelId;
+  syncBranchActions();
 
   if (options?.snapshot) {
     runtime.restore(options.snapshot);
     experience.sync();
+    syncBranchActions();
   }
 }
 
@@ -108,6 +125,29 @@ els.modelSelect.addEventListener("change", () => {
   attachRuntime(els.modelSelect.value);
 });
 els.reset.addEventListener("click", () => attachRuntime(currentId));
+els.fork.addEventListener("click", () => {
+  if (!runtime) return;
+  runtime.pause();
+  runtime.clearBranches();
+  const index = runtime.currentIndex();
+  // Small state nudge so Lorenz (and other state models) visibly diverge after the fork.
+  const frame = runtime.currentFrame();
+  const nudge: Record<string, number> = {};
+  if (frame?.state.x !== undefined) nudge.x = 0.35;
+  else {
+    const firstKey = Object.keys(frame?.state ?? {})[0];
+    if (firstKey) nudge[firstKey] = 0.05 * Math.max(1, Math.abs(frame!.state[firstKey]!));
+  }
+  runtime.forkAt(index, { label: "branch", nudge });
+  runtime.setSyncPlayback(true);
+  syncBranchActions();
+  flash(els.fork, "Forked");
+});
+els.clearBranch.addEventListener("click", () => {
+  runtime?.clearBranches();
+  syncBranchActions();
+  flash(els.clearBranch, "Cleared");
+});
 els.save.addEventListener("click", () => {
   if (!runtime) return;
   writeStoredSnapshot(runtime.snapshot(false));
@@ -161,6 +201,11 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   if (editing) return;
+  if (event.code === "KeyF") {
+    event.preventDefault();
+    els.fork.click();
+    return;
+  }
   if (event.code === "ArrowLeft") {
     event.preventDefault();
     runtime.pause();

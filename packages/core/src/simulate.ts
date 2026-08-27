@@ -19,3 +19,32 @@ export function simulate(
   }
   return frames;
 }
+
+/** Continue a trajectory after a fork point (does not include the fork frame). */
+export function continueSimulate(
+  model: ModelDefinition,
+  parameters: Record<string, unknown>,
+  options: {
+    fromState: Record<string, number>;
+    fromTime: number;
+    steps: number;
+    dt?: number;
+  },
+): StateFrame[] {
+  const dt = options.dt ?? model.time?.dt ?? 0.01;
+  if (options.steps < 0) throw new Error("steps must be >= 0");
+  if (dt <= 0) throw new Error("dt must be > 0");
+
+  let state = { ...options.fromState };
+  const frames: StateFrame[] = [];
+  for (let i = 1; i <= options.steps; i += 1) {
+    state = model.step(state, parameters, dt);
+    const derived = model.derive ? model.derive(state, parameters) : {};
+    frames.push({
+      t: options.fromTime + i * dt,
+      state: { ...state },
+      derived: { ...derived },
+    });
+  }
+  return frames;
+}

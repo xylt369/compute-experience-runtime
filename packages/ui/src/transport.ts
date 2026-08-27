@@ -37,7 +37,14 @@ export function bindTransportBar(options: TransportBarOptions): TransportBar {
   play.addEventListener("click", onPlay);
 
   const unsubscribe = runtime.subscribe((event) => {
-    if (event.type === "frame" || event.type === "rebuild") sync();
+    if (
+      event.type === "frame" ||
+      event.type === "rebuild" ||
+      event.type === "run-seek" ||
+      event.type === "run-state-changed"
+    ) {
+      sync();
+    }
   });
 
   sync();

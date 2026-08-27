@@ -66,6 +66,19 @@ export interface ModelDefinition {
   time?: ModelTime;
 }
 
+export interface RunSnapshot {
+  id: string;
+  params: Record<string, number>;
+  cursor: number;
+  parentRunId?: string;
+  forkIndex?: number;
+  forkTime?: number;
+  forkState?: Record<string, number>;
+  initialState?: Record<string, number>;
+  frames?: StateFrame[];
+  label?: string;
+}
+
 export interface ExperienceSnapshot {
   model: string;
   version?: string;
@@ -73,4 +86,7 @@ export interface ExperienceSnapshot {
   cursor: number;
   savedAt: string;
   frames?: StateFrame[];
+  primaryRunId?: string;
+  runs?: RunSnapshot[];
+  syncPlayback?: boolean;
 }

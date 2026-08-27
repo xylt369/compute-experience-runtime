@@ -10,6 +10,7 @@ export function isSnapshot(value: unknown): value is ExperienceSnapshot {
   if (typeof record.savedAt !== "string") return false;
   if (!record.params || typeof record.params !== "object") return false;
   if (record.frames !== undefined && !Array.isArray(record.frames)) return false;
+  if (record.runs !== undefined && !Array.isArray(record.runs)) return false;
   return true;
 }
 

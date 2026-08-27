@@ -4,15 +4,29 @@
 
 > Write the model. Let the runtime handle the experience.
 
-Compute Experience Runtime is an open-source library for turning computational models into interactive experiences. A developer defines **what** to compute; the runtime handles playback, state, parameters, timeline, snapshots, and renderer selection.
+Compute Experience Runtime is an open-source library for turning computational models into interactive experiences. A developer defines **what** to compute; the runtime owns **runs** — persistent, navigable, forkable execution histories — and turns them into experiences.
 
 The central boundary:
 
 ```text
-Model ≠ Experience
+Model ≠ Run ≠ Experience
 
-Model  →  State  →  Runtime  →  Experience
+Model
+  ↓
+Run
+  ↓
+State History
+  ↓
+Fork / Intervene / Compare
+  ↓
+Experience
 ```
+
+- **Model** — computation rules (`initial` / `step` / `derive`) and a manifest.
+- **Run** — one concrete execution history under particular parameters and state.
+- **Experience** — playback, inspection, and comparison of one or more runs.
+
+Computation is not a disposable function call. A run is a persistent, navigable, forkable object.
 
 This is **not** an AI platform. There is no LLM integration, authentication, cloud backend, or account system in this repository.
 
@@ -20,7 +34,7 @@ This is **not** an AI platform. There is no LLM integration, authentication, clo
 
 | Path | Role |
 | --- | --- |
-| `packages/core` | `@compute-experience/core` — model protocol, timeline, player, snapshots, `createRuntime()` |
+| `packages/core` | `@compute-experience/core` — model protocol, Run, timeline, player, fork/compare, snapshots, `createRuntime()` |
 | `packages/renderers` | `@compute-experience/renderers` — trajectory, pendulum, and timeseries renderers + registry |
 | `packages/ui` | `@compute-experience/ui` — manifest-driven parameter, metric, and transport panels |
 | `playground/` | Browser demo that **consumes** the runtime (not the runtime itself) |
@@ -36,15 +50,7 @@ npm test         # unit tests
 npm run build    # typecheck + production bundle
 ```
 
-Python protocol tests:
-
-```bash
-python -m pytest -q
-```
-
 ## Define a model
-
-A model is a plain object with `manifest`, `initial`, `step`, and optional `derive`:
 
 ```typescript
 import { defineModel } from "@compute-experience/core";
@@ -60,7 +66,6 @@ export const myModel = defineModel({
       { id: "rate", label: "Rate", type: "number", default: 1, min: 0, max: 5, step: 0.1 },
     ],
     state: ["x"],
-    derived: ["absX"],
   },
   time: { steps: 200, dt: 0.05, playbackRate: 1, unit: "s" },
   initial() {
@@ -69,15 +74,10 @@ export const myModel = defineModel({
   step(state, parameters, dt) {
     return { x: state.x + Number(parameters.rate) * dt };
   },
-  derive(state) {
-    return { absX: Math.abs(state.x) };
-  },
 });
 ```
 
-The manifest drives parameter controls in the playground. Do not hardcode sliders per model.
-
-## Create a runtime
+## Create a runtime and fork a run
 
 ```typescript
 import { createRuntime, defaultParameters } from "@compute-experience/core";
@@ -89,6 +89,20 @@ const runtime = createRuntime({
   rendererRegistry: createRendererRegistry(),
   parameters: defaultParameters(myModel),
 });
+
+runtime.rebuild();
+runtime.seek(4.7);
+
+const runB = runtime.forkAtTime(4.7);
+runB.setParameters({ rate: 1.4 });
+// or intervene at the fork point:
+// runB.setForkState({ x: runB.currentFrame()!.state.x + 0.1 });
+
+runtime.setSyncPlayback(true);
+runtime.play(); // primary + branch advance together
+
+const diff = runtime.compare();
+console.log(diff?.divergenceIndex, diff?.stateDifferences);
 
 mountExperienceUI({
   runtime,
@@ -106,39 +120,50 @@ mountExperienceUI({
 Public API (stable surface):
 
 - **Playback:** `play()`, `pause()`, `toggle()`, `seek(time)`, `seekIndex(index)`, `step(delta)`
+- **Runs:** `primaryRun`, `runs`, `comparisonRuns`, `forkAt(index)`, `forkAtTime(time)`, `clearBranches()`, `compare()`, `setSyncPlayback(enabled)`
 - **State:** `rebuild()`, `setParameters(patch)`, `setInitialState(state)`, `currentFrame()`, `currentIndex()`
-- **Snapshots:** `snapshot(includeFrames?)`, `restore(snapshot)`
-- **Events:** `subscribe(listener)` → unsubscribe function
+- **Snapshots:** `snapshot(includeFrames?)`, `restore(snapshot)` — includes branched runs when present
+- **Events:** `subscribe(listener)` — `frame`, `rebuild`, `parameters`, `run-created`, `run-forked`, `run-updated`, `run-seek`, `run-state-changed`
 - **Rendering:** `mount({ viewport, overlay? })`, `unmount()`, `resize()`
+
+## Lorenz fork showcase
+
+In the playground, open **Lorenz attractor**:
+
+1. Play, then pause near a point of interest.
+2. Press **Fork** (or `F`) — creates a branch and nudges state slightly.
+3. Press Play — both runs advance in sync.
+4. Trajectories render together; a connector highlights divergence. Metrics show `Δ` fields.
+
+**Clear branch** returns to a single run.
 
 ## Renderers
 
-Renderers are registered by id. A model's manifest declares which renderer to use:
-
 ```typescript
-renderer: "trajectory-3d"   // Lorenz, Rössler
+renderer: "trajectory-3d"   // Lorenz, Rössler (supports multi-run compare)
 renderer: "pendulum-2d"     // nonlinear pendulum
-renderer: "timeseries-2d"  // SIR epidemic
+renderer: "timeseries-2d"  // SIR / logistic growth
 ```
 
-The runtime resolves the renderer through the registry. Core does not import renderer implementations directly.
+Single-run renderers keep working. Comparison-capable renderers may read `view.primaryRun` and `view.comparisonRuns`.
 
 ## Snapshots
-
-Snapshots are deterministic, JSON-compatible objects:
 
 ```json
 {
   "model": "lorenz-attractor",
-  "version": "0.1.0",
   "params": { "sigma": 10, "rho": 28, "beta": 2.67 },
   "cursor": 42,
-  "savedAt": "2026-08-27T12:00:00.000Z",
-  "frames": []
+  "savedAt": "...",
+  "frames": [],
+  "primaryRunId": "run_1_...",
+  "syncPlayback": true,
+  "runs": [
+    { "id": "run_1_...", "params": {}, "cursor": 42, "frames": [] },
+    { "id": "run_2_...", "parentRunId": "run_1_...", "forkIndex": 42, "params": {}, "cursor": 42, "frames": [] }
+  ]
 }
 ```
-
-`frames` is optional. Use `serializeSnapshot()` / `deserializeSnapshot()` for export and import.
 
 ## Built-in models
 
@@ -150,20 +175,9 @@ Snapshots are deterministic, JSON-compatible objects:
 | SIR epidemic | `timeseries-2d` |
 | Logistic growth (`custom-model`) | `timeseries-2d` |
 
-Switching models in the playground uses the same runtime abstractions — no model-specific UI code.
-
 ## Create a third-party model
 
-See [`examples/custom-model/`](examples/custom-model/). The authoring file defines only the model. The playground registers it in the catalog and reuses the same `createRuntime()` + `mountExperienceUI()` path — no new UI.
-
-```bash
-# model only
-examples/custom-model/model.ts
-
-# how the experience appears (already provided)
-createRuntime({ model: customModel, rendererRegistry })
-mountExperienceUI({ runtime, elements })
-```
+See [`examples/custom-model/`](examples/custom-model/). Author only the model; the runtime supplies run, playback, fork, and UI.
 
 ## Architecture
 
@@ -171,14 +185,16 @@ mountExperienceUI({ runtime, elements })
 Third-party Model
        │
        ▼
-Model Protocol (manifest + initial/step/derive)
+Model Protocol
        │
        ▼
-Compute Experience Runtime
+Computational Run(s)
    ┌───┼───┐
    │   │   │
    ▼   ▼   ▼
 State Player Snapshot
+       │
+  Fork / Compare
        │
        ▼
 Renderer Registry
@@ -189,18 +205,6 @@ Renderer Registry
 
 ## Python authoring protocol
 
-Python models under `examples/` follow the same contract for offline simulation:
-
-```python
-MANIFEST = {...}
-
-def initial(parameters): ...
-def step(state, parameters, dt): ...
-def derive(state, parameters): ...  # optional
-```
-
-Run as NDJSON:
-
 ```bash
 python bridge/author.py examples/rossler_model.py \
   --parameters '{"a":0.2,"b":0.2,"c":5.7}' \
@@ -208,3 +212,17 @@ python bridge/author.py examples/rossler_model.py \
 ```
 
 Schema: `packages/core/src/protocol/manifest-schema.json` (also mirrored at `runtime/authoring.schema.json`).
+
+## Milestone status
+
+- **Runtime foundation:** model protocol, playground consumer
+- **Manifest-driven UI:** `@compute-experience/ui`
+- **Third-party custom-model:** model-only authoring proof
+- **Runtime v0.2 Computational Runs:** Run, fork, compare, synced playback, Lorenz showcase
+
+## Deliberate non-goals
+
+- AI / LLM model generation
+- Authentication, accounts, database, cloud deployment
+- WebGPU migration, advanced 3D editor, arbitrary code execution
+- Python live compute bridge (WASM / hot reload) — future work

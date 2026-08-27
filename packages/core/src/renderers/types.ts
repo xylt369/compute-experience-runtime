@@ -6,6 +6,17 @@ export interface RendererMountOptions {
   onInitialState?: (state: Record<string, number>) => void;
 }
 
+/** Optional multi-run view for comparison-capable renderers. */
+export interface RunRenderView<Frame = ModelFrame> {
+  id: string;
+  label?: string;
+  frame: Frame;
+  frames: readonly Frame[];
+  cursor: number;
+  params: Record<string, number>;
+  isPrimary: boolean;
+}
+
 export interface RendererView<Frame = ModelFrame, Manifest = ModelManifest> {
   frame: Frame;
   frames: readonly Frame[];
@@ -13,6 +24,10 @@ export interface RendererView<Frame = ModelFrame, Manifest = ModelManifest> {
   trail: number;
   manifest: Manifest;
   params: Record<string, number>;
+  /** Present when the runtime is comparing multiple runs. */
+  primaryRun?: RunRenderView<Frame>;
+  comparisonRuns?: RunRenderView<Frame>[];
+  syncTime?: number;
 }
 
 export interface RuntimeRenderer<Frame = ModelFrame, Manifest = ModelManifest> {
