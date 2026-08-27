@@ -146,8 +146,22 @@ Snapshots are deterministic, JSON-compatible objects:
 | Rössler attractor | `trajectory-3d` |
 | Simple pendulum | `pendulum-2d` |
 | SIR epidemic | `timeseries-2d` |
+| Logistic growth (`custom-model`) | `timeseries-2d` |
 
 Switching models in the playground uses the same runtime abstractions — no model-specific UI code.
+
+## Create a third-party model
+
+See [`examples/custom-model/`](examples/custom-model/). The authoring file defines only the model. The playground registers it in the catalog and reuses the same `createRuntime()` + `mountExperienceUI()` path — no new UI.
+
+```bash
+# model only
+examples/custom-model/model.ts
+
+# how the experience appears (already provided)
+createRuntime({ model: customModel, rendererRegistry })
+mountExperienceUI({ runtime, elements })
+```
 
 ## Architecture
 
@@ -197,7 +211,7 @@ Schema: `packages/core/src/protocol/manifest-schema.json` (also mirrored at `run
 
 - **Phase 1 (done):** Extract runtime core from the playground app
 - **Phase 2 (done):** Manifest-driven UI via `@compute-experience/ui`
-- **Phase 3:** `examples/custom-model` — third-party developer writes only the model, no UI
+- **Phase 3 (done):** `examples/custom-model` — third-party developer writes only the model, no UI
 
 ## Deliberate non-goals
 

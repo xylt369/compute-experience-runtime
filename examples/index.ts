@@ -1,4 +1,5 @@
 import type { ModelDefinition } from "@compute-experience/core";
+import { customModel } from "./custom-model";
 import { lorenz } from "./lorenz";
 import { pendulum } from "./pendulum";
 import { rossler } from "./rossler";
@@ -9,6 +10,7 @@ export const models: Record<string, ModelDefinition> = {
   [rossler.manifest.id]: rossler,
   [pendulum.manifest.id]: pendulum,
   [sir.manifest.id]: sir,
+  [customModel.manifest.id]: customModel,
 };
 
 export const modelList: ModelDefinition[] = Object.values(models);

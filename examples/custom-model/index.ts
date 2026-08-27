@@ -1,0 +1,1 @@
+export { customModel } from "./model";

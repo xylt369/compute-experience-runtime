@@ -8,8 +8,8 @@ const ajv = new Ajv2020({ allErrors: true, strict: false });
 const validate = ajv.compile(schema);
 
 describe("JS model manifests", () => {
-  it("validates all four demo models against the authoring schema", () => {
-    expect(modelList).toHaveLength(4);
+  it("validates all catalog models against the authoring schema", () => {
+    expect(modelList.length).toBeGreaterThanOrEqual(5);
     for (const model of modelList) {
       const ok = validate(model.manifest);
       expect(ok, JSON.stringify(validate.errors)).toBe(true);
@@ -19,9 +19,17 @@ describe("JS model manifests", () => {
     }
   });
 
-  it("covers the four intended models and three renderers", () => {
+  it("covers built-in models, the third-party custom-model, and three renderers", () => {
     const ids = modelList.map((model) => model.manifest.id).sort();
-    expect(ids).toEqual(["lorenz-attractor", "rossler-attractor", "simple-pendulum", "sir-epidemic"].sort());
+    expect(ids).toEqual(
+      [
+        "custom-logistic-growth",
+        "lorenz-attractor",
+        "rossler-attractor",
+        "simple-pendulum",
+        "sir-epidemic",
+      ].sort(),
+    );
     const renderers = new Set(modelList.map((model) => model.manifest.renderer));
     expect(renderers).toEqual(new Set(["trajectory-3d", "pendulum-2d", "timeseries-2d"]));
   });
