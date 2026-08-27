@@ -1,8 +1,8 @@
 import Ajv2020 from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
-import schema from "../../runtime/authoring.schema.json";
-import { modelList } from "../../web/src/models";
-import appSource from "../../web/src/app.ts?raw";
+import schema from "../../packages/core/src/protocol/manifest-schema.json";
+import { modelList } from "../../examples";
+import appSource from "../../playground/src/app.ts?raw";
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 const validate = ajv.compile(schema);
@@ -26,9 +26,10 @@ describe("JS model manifests", () => {
     expect(renderers).toEqual(new Set(["trajectory-3d", "pendulum-2d", "timeseries-2d"]));
   });
 
-  it("does not branch the product shell on model ids", () => {
+  it("does not branch the playground shell on model ids", () => {
     expect(appSource).not.toMatch(/modelId\s*===\s*['"`]/);
     expect(appSource).not.toMatch(/currentId\s*===\s*['"`]/);
     expect(appSource).not.toMatch(/if\s*\(\s*model\.manifest\.id/);
+    expect(appSource).toMatch(/createRuntime\(/);
   });
 });

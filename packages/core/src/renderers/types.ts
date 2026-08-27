@@ -1,0 +1,40 @@
+import type { ModelFrame, ModelManifest } from "../protocol/types";
+
+export interface RendererMountOptions {
+  overlay?: HTMLElement;
+  onParams?: (params: Record<string, number>) => void;
+  onInitialState?: (state: Record<string, number>) => void;
+}
+
+export interface RendererView<Frame = ModelFrame, Manifest = ModelManifest> {
+  frame: Frame;
+  frames: readonly Frame[];
+  cursor: number;
+  trail: number;
+  manifest: Manifest;
+  params: Record<string, number>;
+}
+
+export interface RuntimeRenderer<Frame = ModelFrame, Manifest = ModelManifest> {
+  readonly id: string;
+  mount(target: HTMLElement, options?: RendererMountOptions): void;
+  unmount(): void;
+  update(view: RendererView<Frame, Manifest>): void;
+  resize?(): void;
+}
+
+export interface RendererRegistry<Frame = ModelFrame, Manifest = ModelManifest> {
+  register(renderer: RuntimeRenderer<Frame, Manifest>): void;
+  get(id: string): RuntimeRenderer<Frame, Manifest>;
+  has(id: string): boolean;
+}
+
+export function resolveRenderer<Frame, Manifest extends { renderer: string }>(
+  manifest: Manifest,
+  registry: RendererRegistry<Frame, Manifest>,
+): RuntimeRenderer<Frame, Manifest> {
+  return registry.get(manifest.renderer);
+}
+
+/** @deprecated Use resolveRenderer */
+export const rendererFor = resolveRenderer;

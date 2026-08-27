@@ -11,8 +11,19 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["vite/client"],
-    "baseUrl": "."
+    "types": ["vite/client", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "@compute-experience/core": ["packages/core/src/index.ts"],
+      "@compute-experience/renderers": ["packages/renderers/src/index.ts"]
+    }
   },
-  "include": ["runtime", "web", "tests/js", "vite.config.ts"]
+  "include": [
+    "packages/core/src",
+    "packages/renderers/src",
+    "playground/src",
+    "examples",
+    "tests/js",
+    "vite.config.ts"
+  ]
 }

@@ -1,6 +1,6 @@
-import type { ModelDefinition } from "../../../runtime/model.schema";
+import { defineModel, type ModelDefinition } from "@compute-experience/core";
 
-export const rossler: ModelDefinition = {
+export const rossler: ModelDefinition = defineModel({
   manifest: {
     id: "rossler-attractor",
     name: "Rössler attractor",
@@ -34,4 +34,4 @@ export const rossler: ModelDefinition = {
   derive(state) {
     return { radius: Math.hypot(state.x, state.y, state.z) };
   },
-};
+});

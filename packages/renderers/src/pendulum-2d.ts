@@ -1,9 +1,10 @@
-import type { ModelFrame, ModelManifest } from "../../../runtime/model.schema";
 import type {
+  ModelFrame,
+  ModelManifest,
   RendererMountOptions,
   RendererView,
   RuntimeRenderer,
-} from "../../../runtime/renderer.registry";
+} from "@compute-experience/core";
 
 function wrapPi(angle: number) {
   let a = angle;

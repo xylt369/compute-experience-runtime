@@ -1,61 +1,172 @@
-# Compute Experience
+# Compute Experience Runtime
 
-> Turn computation into an interactive experience.
+> Write the model. Let the runtime handle the experience.
 
-Compute Experience is an experimental runtime for making computational models feel like **objects you can inspect, manipulate, replay, and share** rather than static charts or notebook outputs.
+Compute Experience Runtime is an open-source library for turning computational models into interactive experiences. A developer defines **what** to compute; the runtime handles playback, state, parameters, timeline, snapshots, and renderer selection.
 
-The central boundary is:
+The central boundary:
 
 ```text
 Model ≠ Experience
+
+Model  →  State  →  Runtime  →  Experience
 ```
 
-A model owns computation and state transitions. The runtime owns playback and interaction. A renderer owns how state becomes understandable.
+This is **not** an AI platform. There is no LLM integration, authentication, cloud backend, or account system in this repository.
 
-## What this demo is
+## Packages
 
-The page is a static instrument. It computes **in the browser** from four JavaScript models that follow the same `{manifest, initial, step, derive}` contract as the Python examples. Switching models only changes the catalog entry; the shell asks the manifest for a renderer name.
-
-| Model | Renderer |
+| Path | Role |
 | --- | --- |
-| Lorenz attractor | `trajectory-3d` |
-| Rössler attractor | `trajectory-3d` |
-| Simple pendulum (nonlinear ODE) | `pendulum-2d` |
-| SIR epidemic | `timeseries-2d` |
+| `packages/core` | `@compute-experience/core` — model protocol, timeline, player, snapshots, `createRuntime()` |
+| `packages/renderers` | `@compute-experience/renderers` — trajectory, pendulum, and timeseries renderers + registry |
+| `playground/` | Browser demo that **consumes** the runtime (not the runtime itself) |
+| `examples/` | Model definitions using `defineModel()` |
+| `bridge/` + Python under `examples/` | Authoring protocol for offline NDJSON export (not the live browser backend) |
 
-Python under `examples/` and `bridge/` is the **authoring protocol**, not the live compute backend for this demo. Precomputed JSON files can be imported as a recorded snapshot; they are not required to open the page.
-
-## Run the instrument
+## Quick start
 
 ```bash
 npm install
-npm run dev
+npm run dev      # open playground (usually http://localhost:5173)
+npm test         # unit tests
+npm run build    # typecheck + production bundle
 ```
 
-Then open the URL Vite prints (usually `http://localhost:5173`).
-
-```bash
-npm run build
-npm run preview
-```
-
-## Tests
-
-Browser runtime (manifest schema, player, renderer registry):
-
-```bash
-npm test
-```
-
-Python protocol (unchanged this milestone):
+Python protocol tests:
 
 ```bash
 python -m pytest -q
 ```
 
-## Authoring protocol
+## Define a model
 
-A model author supplies:
+A model is a plain object with `manifest`, `initial`, `step`, and optional `derive`:
+
+```typescript
+import { defineModel } from "@compute-experience/core";
+
+export const myModel = defineModel({
+  manifest: {
+    id: "my-model",
+    name: "My Model",
+    description: "A minimal example.",
+    version: "0.1.0",
+    renderer: "timeseries-2d",
+    parameters: [
+      { id: "rate", label: "Rate", type: "number", default: 1, min: 0, max: 5, step: 0.1 },
+    ],
+    state: ["x"],
+    derived: ["absX"],
+  },
+  time: { steps: 200, dt: 0.05, playbackRate: 1, unit: "s" },
+  initial() {
+    return { x: 1 };
+  },
+  step(state, parameters, dt) {
+    return { x: state.x + Number(parameters.rate) * dt };
+  },
+  derive(state) {
+    return { absX: Math.abs(state.x) };
+  },
+});
+```
+
+The manifest drives parameter controls in the playground. Do not hardcode sliders per model.
+
+## Create a runtime
+
+```typescript
+import { createRuntime, defaultParameters } from "@compute-experience/core";
+import { createRendererRegistry } from "@compute-experience/renderers";
+
+const runtime = createRuntime({
+  model: myModel,
+  rendererRegistry: createRendererRegistry(),
+  parameters: defaultParameters(myModel),
+});
+
+runtime.subscribe((event) => {
+  if (event.type === "frame") console.log(event.frame.t);
+});
+
+runtime.mount({ viewport: document.getElementById("viewport")! });
+runtime.play();
+```
+
+Public API (stable surface):
+
+- **Playback:** `play()`, `pause()`, `toggle()`, `seek(time)`, `seekIndex(index)`, `step(delta)`
+- **State:** `rebuild()`, `setParameters(patch)`, `setInitialState(state)`, `currentFrame()`, `currentIndex()`
+- **Snapshots:** `snapshot(includeFrames?)`, `restore(snapshot)`
+- **Events:** `subscribe(listener)` → unsubscribe function
+- **Rendering:** `mount({ viewport, overlay? })`, `unmount()`, `resize()`
+
+## Renderers
+
+Renderers are registered by id. A model's manifest declares which renderer to use:
+
+```typescript
+renderer: "trajectory-3d"   // Lorenz, Rössler
+renderer: "pendulum-2d"     // nonlinear pendulum
+renderer: "timeseries-2d"  // SIR epidemic
+```
+
+The runtime resolves the renderer through the registry. Core does not import renderer implementations directly.
+
+## Snapshots
+
+Snapshots are deterministic, JSON-compatible objects:
+
+```json
+{
+  "model": "lorenz-attractor",
+  "version": "0.1.0",
+  "params": { "sigma": 10, "rho": 28, "beta": 2.67 },
+  "cursor": 42,
+  "savedAt": "2026-08-27T12:00:00.000Z",
+  "frames": []
+}
+```
+
+`frames` is optional. Use `serializeSnapshot()` / `deserializeSnapshot()` for export and import.
+
+## Built-in models
+
+| Model | Renderer |
+| --- | --- |
+| Lorenz attractor | `trajectory-3d` |
+| Rössler attractor | `trajectory-3d` |
+| Simple pendulum | `pendulum-2d` |
+| SIR epidemic | `timeseries-2d` |
+
+Switching models in the playground uses the same runtime abstractions — no model-specific UI code.
+
+## Architecture
+
+```text
+Third-party Model
+       │
+       ▼
+Model Protocol (manifest + initial/step/derive)
+       │
+       ▼
+Compute Experience Runtime
+   ┌───┼───┐
+   │   │   │
+   ▼   ▼   ▼
+State Player Snapshot
+       │
+       ▼
+Renderer Registry
+       │
+       ▼
+  Experience
+```
+
+## Python authoring protocol
+
+Python models under `examples/` follow the same contract for offline simulation:
 
 ```python
 MANIFEST = {...}
@@ -65,7 +176,7 @@ def step(state, parameters, dt): ...
 def derive(state, parameters): ...  # optional
 ```
 
-The JavaScript models in `web/src/models/` use the same field names. Run an authored Python model as NDJSON:
+Run as NDJSON:
 
 ```bash
 python bridge/author.py examples/rossler_model.py \
@@ -73,43 +184,17 @@ python bridge/author.py examples/rossler_model.py \
   --steps 520 --dt 0.03
 ```
 
-The runtime schema lives in `runtime/authoring.schema.json`.
+Schema: `packages/core/src/protocol/manifest-schema.json` (also mirrored at `runtime/authoring.schema.json`).
 
-## Architecture
+## Roadmap (current focus)
 
-```text
-model source (JS demo / Python protocol)
-    ↓
-manifest + state model
-    ↓
-state frames
-    ↓
-runtime player
-    ↓
-renderer registry (by name)
-    ↓
-interactive experience
-```
+- **Phase 1 (done):** Extract runtime core from the playground app
+- **Phase 2:** Manifest-driven UI — zero hardcoded parameter/metric panels in playground
+- **Phase 3:** `examples/custom-model` — third-party developer writes only the model, no UI
 
-Snapshots are a shareable object:
+## Deliberate non-goals
 
-```json
-{ "model": "lorenz-attractor", "params": {}, "cursor": 0, "savedAt": "...", "frames": [] }
-```
-
-`frames` is optional. Restore reads `localStorage`; Export / Import move the same object as JSON.
-
-## Product thesis
-
-`model → state → interaction → experience`
-
-Not:
-
-`code → chart`
-
-## Deliberate non-goals (this milestone)
-
-- Python live compute bridge, WASM, SDK packaging
-- React, dashboards, chat, AI generation
-- robot arm, streaming data, comparison branches, cloud
-- a full 3D engine
+- AI / LLM model generation
+- Authentication, accounts, database, cloud deployment
+- WebGPU migration, advanced 3D editor, arbitrary code execution
+- Python live compute bridge (WASM / hot reload) — future work

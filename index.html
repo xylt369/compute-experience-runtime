@@ -2,62 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="refresh" content="0; url=./playground/" />
   <title>Compute Experience</title>
 </head>
 <body>
-  <div class="app">
-    <header class="top">
-      <div class="brand">COMPUTE EXPERIENCE / RUNTIME</div>
-      <div class="actions">
-        <button class="control drawer-toggle" id="drawerToggle" type="button">Params</button>
-        <select class="control" id="modelSelect"></select>
-        <button class="control" id="reset" type="button">Reset</button>
-        <button class="control" id="save" type="button">Save</button>
-        <button class="control" id="restore" type="button">Restore</button>
-        <button class="control" id="export" type="button">Export</button>
-        <button class="control" id="import" type="button">Import</button>
-        <input id="importFile" type="file" accept="application/json" hidden />
-      </div>
-    </header>
-    <div class="drawer-backdrop" id="drawerBackdrop"></div>
-    <div class="layout">
-      <aside class="sidebar" id="sidebar">
-        <div class="eyebrow">Model manifest</div>
-        <div class="title" id="modelName">—</div>
-        <p class="desc" id="modelDesc"></p>
-        <div id="params"></div>
-        <div class="metrics" id="metrics"></div>
-      </aside>
-      <main class="main">
-        <div class="subbar">
-          <span id="modelId">—</span>
-          <span id="runtimeLabel">manifest → frames → renderer</span>
-        </div>
-        <div class="stage">
-          <div class="grid"></div>
-          <div class="hud">
-            <div class="pill" id="stateCount">0 states</div>
-            <div class="pill" id="rendererPill">renderer: —</div>
-          </div>
-          <div class="viewport" id="viewport"></div>
-          <div class="renderer-overlay" id="rendererOverlay"></div>
-          <div class="timeline">
-            <button id="play" type="button">▶</button>
-            <input class="scrub" id="scrub" type="range" min="0" max="0" step="1" value="0">
-            <span class="time" id="time">0.00</span>
-          </div>
-        </div>
-        <footer class="footer">
-          <div class="footer-copy">
-            <div class="footer-kicker">Runtime boundary</div>
-            <p>Developers author computation; the runtime turns model state into a replayable, inspectable experience. The UI is generated from the manifest. This demo computes in the browser; Python examples document the authoring protocol.</p>
-          </div>
-          <div class="footer-code">model → state → experience</div>
-        </footer>
-      </main>
-    </div>
-  </div>
-  <script type="module" src="/web/src/app.ts"></script>
+  <p>Playground moved to <a href="./playground/">playground/</a>. Run <code>npm run dev</code>.</p>
 </body>
 </html>

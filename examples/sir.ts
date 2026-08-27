@@ -1,6 +1,6 @@
-import type { ModelDefinition } from "../../../runtime/model.schema";
+import { defineModel, type ModelDefinition } from "@compute-experience/core";
 
-export const sir: ModelDefinition = {
+export const sir: ModelDefinition = defineModel({
   manifest: {
     id: "sir-epidemic",
     name: "SIR epidemic",
@@ -81,4 +81,4 @@ export const sir: ModelDefinition = {
       peakRisk: (beta * state.infected) / n,
     };
   },
-};
+});

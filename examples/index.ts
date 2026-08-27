@@ -1,4 +1,4 @@
-import type { ModelDefinition } from "../../../runtime/model.schema";
+import type { ModelDefinition } from "@compute-experience/core";
 import { lorenz } from "./lorenz";
 import { pendulum } from "./pendulum";
 import { rossler } from "./rossler";

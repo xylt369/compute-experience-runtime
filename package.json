@@ -1,8 +1,12 @@
 {
   "name": "compute-experience-runtime",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
+  "workspaces": [
+    "packages/core",
+    "packages/renderers"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -11,6 +15,7 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@types/node": "^26.4.0",
     "ajv": "^8.17.1",
     "jsdom": "^26.1.0",
     "typescript": "^5.8.3",

@@ -1,9 +1,10 @@
-import type { ModelFrame, ModelManifest } from "../../../runtime/model.schema";
 import type {
+  ModelFrame,
+  ModelManifest,
   RendererMountOptions,
   RendererView,
   RuntimeRenderer,
-} from "../../../runtime/renderer.registry";
+} from "@compute-experience/core";
 
 const PALETTE = ["#8aa4b0", "#f2d0c6", "#9aa48c", "#c5ccd3"];
 
@@ -108,7 +109,7 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
     const derivedKeys = view.manifest.derived ?? [];
     if (this.hudHost) {
       this.hudHost.innerHTML = derivedKeys
-        .map((key) => {
+        .map((key: string) => {
           const value = view.frame.derived?.[key] ?? Number.NaN;
           return `<div class="pill">${labelFor(key)} ${formatValue(key, value)}</div>`;
         })
@@ -117,7 +118,7 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
     const legend = this.overlay.querySelector('[data-role="legend"]');
     if (legend) {
       legend.innerHTML = view.manifest.state
-        .map((key, i) => {
+        .map((key: string, i: number) => {
           const color = PALETTE[i % PALETTE.length];
           return `<span><i class="swatch" style="background:${color}"></i>${key}</span>`;
         })
@@ -185,7 +186,7 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
     const xOf = (t: number) => pad.l + ((t - t0) / span) * innerW;
     const yOf = (v: number) => pad.t + innerH - (v / maxY) * innerH;
 
-    keys.forEach((key, series) => {
+    keys.forEach((key: string, series: number) => {
       ctx.beginPath();
       let started = false;
       const until = Math.min(view.cursor, visibleEnd);
@@ -229,7 +230,7 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
       ctx.lineTo(x, pad.t + innerH);
       ctx.stroke();
       ctx.setLineDash([]);
-      keys.forEach((key, series) => {
+      keys.forEach((key: string, series: number) => {
         ctx.beginPath();
         ctx.fillStyle = PALETTE[series % PALETTE.length];
         ctx.arc(x, yOf(head.state[key] ?? 0), 3.4, 0, Math.PI * 2);

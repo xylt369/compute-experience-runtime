@@ -1,6 +1,6 @@
-import type { ModelDefinition } from "../../../runtime/model.schema";
+import { defineModel, type ModelDefinition } from "@compute-experience/core";
 
-export const lorenz: ModelDefinition = {
+export const lorenz: ModelDefinition = defineModel({
   manifest: {
     id: "lorenz-attractor",
     name: "Lorenz attractor",
@@ -34,4 +34,4 @@ export const lorenz: ModelDefinition = {
   derive(state) {
     return { radius: Math.hypot(state.x, state.y, state.z) };
   },
-};
+});

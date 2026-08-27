@@ -1,6 +1,6 @@
-import type { ModelDefinition } from "../../../runtime/model.schema";
+import { defineModel, type ModelDefinition } from "@compute-experience/core";
 
-export const pendulum: ModelDefinition = {
+export const pendulum: ModelDefinition = defineModel({
   manifest: {
     id: "simple-pendulum",
     name: "Simple pendulum",
@@ -37,4 +37,4 @@ export const pendulum: ModelDefinition = {
     const omega = Math.sqrt(g / length);
     return { period: (2 * Math.PI) / omega, angularFrequency: omega };
   },
-};
+});
