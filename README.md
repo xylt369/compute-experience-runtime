@@ -1,5 +1,7 @@
 # Compute Experience Runtime
 
+[English](README.md) | [简体中文](README_zh.md)
+
 > Write the model. Let the runtime handle the experience.
 
 Compute Experience Runtime is an open-source library for turning computational models into interactive experiences. A developer defines **what** to compute; the runtime handles playback, state, parameters, timeline, snapshots, and renderer selection.
