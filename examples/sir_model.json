@@ -1,0 +1,12 @@
+{
+  "id": "sir-epidemic",
+  "name": "SIR epidemic",
+  "parameters": {
+    "population": 1000,
+    "contactRate": 0.55,
+    "recoveryRate": 0.12,
+    "initialInfected": 10
+  },
+  "steps": 240,
+  "dt": 0.25
+}
