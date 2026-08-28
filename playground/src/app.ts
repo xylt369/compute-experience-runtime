@@ -9,12 +9,28 @@ import {
   writeStoredSnapshot,
 } from "@compute-experience/core";
 import { createRendererRegistry } from "@compute-experience/renderers";
-import { mountExperienceUI, type ExperienceHandle } from "@compute-experience/ui";
+import { mountExperienceUI, type ExperienceHandle, type InterventionConfig } from "@compute-experience/ui";
 import { models } from "../../examples";
 import "./styles.css";
 
 const LORENZ_ID = "lorenz-attractor";
-const DEFAULT_EPSILON = 1e-8;
+const SIR_ID = "sir-epidemic";
+const DEFAULT_LORENZ_EPSILON = 1e-8;
+const SIR_FORK_INTERVENTION_DAY = 10;
+
+const COUNTERFACTUAL_CONFIG: Record<string, InterventionConfig> = {
+  [LORENZ_ID]: {
+    mode: "state",
+    perturbField: "x",
+    defaultEpsilon: DEFAULT_LORENZ_EPSILON,
+  },
+  [SIR_ID]: {
+    mode: "parameter",
+    parameterId: "interventionStartDay",
+    forkValue: SIR_FORK_INTERVENTION_DAY,
+    label: "Intervention start",
+  },
+};
 
 const registry = createRendererRegistry();
 
@@ -54,7 +70,21 @@ let runtime: ComputeRuntime | null = null;
 let experience: ExperienceHandle | null = null;
 
 function isCounterfactualModel(modelId: string): boolean {
-  return modelId === LORENZ_ID;
+  return modelId in COUNTERFACTUAL_CONFIG;
+}
+
+function counterfactualConfig(modelId: string): InterventionConfig | undefined {
+  return COUNTERFACTUAL_CONFIG[modelId];
+}
+
+function applyForkIntervention() {
+  const config = counterfactualConfig(currentId);
+  if (!config || !experience?.counterfactual) return;
+  if (config.mode === "parameter") {
+    experience.counterfactual.applyIntervention(config.forkValue);
+    return;
+  }
+  experience.counterfactual.applyIntervention(config.defaultEpsilon ?? DEFAULT_LORENZ_EPSILON);
 }
 
 function setDrawer(open: boolean) {
@@ -105,11 +135,13 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
   });
 
   const counterfactual = isCounterfactualModel(modelId);
+  const intervention = counterfactualConfig(modelId);
 
   experience = mountExperienceUI({
     runtime,
     counterfactualMode: counterfactual,
-    perturbField: counterfactual ? "x" : undefined,
+    intervention,
+    showOutcomes: intervention?.mode === "parameter",
     elements: {
       modelName: els.modelName,
       modelDesc: els.modelDesc,
@@ -167,7 +199,7 @@ els.fork.addEventListener("click", () => {
   runtime.pause();
   const index = runtime.currentIndex();
   runtime.forkAt(index);
-  experience?.counterfactual?.applyIntervention(DEFAULT_EPSILON);
+  applyForkIntervention();
   runtime.setSyncPlayback(true);
   syncBranchActions();
   flash(els.fork, "Forked");

@@ -173,12 +173,35 @@ const diff = runtime.compare(); // divergenceTime, divergenceMagnitude, stateDif
 
 Same past → different intervention → different future.
 
+### SIR counterfactual showcase
+
+Select **SIR Counterfactual** in the playground to test the same interaction on a non-chaotic decision system:
+
+```text
+history → fork → intervention timing → alternative future → comparison
+```
+
+Scenario: contact-rate reduction begins on **day 20** in the original run. Pause near day 15–20, **Fork**, then move intervention start to **day 10** on the branch only. Both runs share the same epidemic history up to the fork; only the future diverges.
+
+> The point is not to visualize an epidemic more beautifully. The point is to make alternative histories first-class objects.
+
+```typescript
+runtime.pause();
+runtime.seekIndex(day15Index);
+runtime.forkAt(day15Index);
+runtime.comparisonRuns[0]!.setParameters({ interventionStartDay: 10 });
+runtime.setSyncPlayback(true);
+runtime.play();
+```
+
+Outcome comparison (peak infected, peak day) appears in the sidebar when branches are active.
+
 ## Renderers
 
 ```typescript
 renderer: "trajectory-3d"   // Lorenz, Rössler (supports multi-run compare)
 renderer: "pendulum-2d"     // nonlinear pendulum
-renderer: "timeseries-2d"  // SIR / logistic growth
+renderer: "timeseries-2d"  // SIR counterfactual / logistic growth (SIR supports multi-run compare)
 ```
 
 Single-run renderers keep working. Comparison-capable renderers may read `view.primaryRun` and `view.comparisonRuns`.
@@ -211,7 +234,7 @@ Snapshots are deterministic, JSON-compatible objects supporting multi-run trees:
 | Lorenz attractor | `trajectory-3d` |
 | Rössler attractor | `trajectory-3d` |
 | Simple pendulum | `pendulum-2d` |
-| SIR epidemic | `timeseries-2d` |
+| SIR Counterfactual | `timeseries-2d` |
 | Logistic growth (`custom-model`) | `timeseries-2d` |
 
 ## Create a third-party model
@@ -280,6 +303,7 @@ Schema: [`packages/core/src/protocol/manifest-schema.json`](packages/core/src/pr
 - **Third-party custom-model:** model-only authoring proof
 - **Runtime v0.2 Computational Runs:** Run, fork, compare, synced playback
 - **Counterfactual Lorenz showcase:** fork, intervene, divergence, inspect, re-fork
+- **SIR counterfactual showcase:** intervention timing fork/compare on a decision system
 
 ## Deliberate non-goals
 

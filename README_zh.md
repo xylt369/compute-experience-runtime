@@ -139,12 +139,35 @@ mountExperienceUI({
 
 点击 **Clear branch** 可恢复为单分支运行。
 
+## SIR 反事实演示 (SIR counterfactual showcase)
+
+在 Playground 中选择 **SIR Counterfactual**：
+
+```text
+历史 → 分叉 → 干预时机 → 替代未来 → 对比
+```
+
+场景：原始运行中接触率干预从 **第 20 天** 开始。在第 15–20 天附近暂停并 **Fork**，仅在分支上将干预开始日改为 **第 10 天**。两条运行共享分叉点之前的同一疫情历史；只有未来轨迹会分离。
+
+> 重点不是把疫情画得更漂亮，而是让替代历史成为一等对象。
+
+```typescript
+runtime.pause();
+runtime.seekIndex(day15Index);
+runtime.forkAt(day15Index);
+runtime.comparisonRuns[0]!.setParameters({ interventionStartDay: 10 });
+runtime.setSyncPlayback(true);
+runtime.play();
+```
+
+分支激活时，侧栏会显示峰值感染人数、峰值日期等结果对比。
+
 ## 渲染器 (Renderers)
 
 ```typescript
 renderer: "trajectory-3d"   // 洛伦兹 (Lorenz)、罗斯勒 (Rössler)（支持多分叉对比渲染）
 renderer: "pendulum-2d"     // 非线性单摆 (nonlinear pendulum)
-renderer: "timeseries-2d"  // SIR 传染病 / Logistic 增长模型
+renderer: "timeseries-2d"  // SIR 反事实 / Logistic 增长（SIR 支持多分叉对比）
 ```
 
 单分支渲染器继续正常工作；具备对比能力的渲染器可直接读取 `view.primaryRun` 与 `view.comparisonRuns`。
@@ -174,7 +197,7 @@ renderer: "timeseries-2d"  // SIR 传染病 / Logistic 增长模型
 | 洛伦兹吸引子 (Lorenz attractor) | `trajectory-3d` |
 | 罗斯勒吸引子 (Rössler attractor) | `trajectory-3d` |
 | 简摆 (Simple pendulum) | `pendulum-2d` |
-| SIR 传染病模型 (SIR epidemic) | `timeseries-2d` |
+| SIR 反事实 (SIR Counterfactual) | `timeseries-2d` |
 | Logistic 增长模型 (Logistic growth, `custom-model`) | `timeseries-2d` |
 
 ## 创建第三方模型 (Create a third-party model)
@@ -221,6 +244,7 @@ python bridge/author.py examples/rossler_model.py \
 - **清单驱动 UI (Manifest-driven UI):** `@compute-experience/ui`
 - **第三方自定义模型 (Third-party custom-model):** 纯模型免 UI 开发验证
 - **计算运行实例 v0.2 (Computational Runs):** Run、分叉 (fork)、对比 (compare)、同步回放、Lorenz 分叉发散演示
+- **SIR 反事实演示 (SIR counterfactual):** 干预时机分叉/对比，验证非混沌决策系统
 
 ## 明确的非目标 (Deliberate non-goals)
 

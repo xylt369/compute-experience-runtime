@@ -1,6 +1,6 @@
 import type { ComputeRuntime } from "@compute-experience/core";
 import { bindModelChrome, type ModelChromeElements } from "./chrome";
-import { bindCounterfactualUI, type CounterfactualElements, type CounterfactualHandle } from "./counterfactual";
+import { bindCounterfactualUI, type CounterfactualElements, type CounterfactualHandle, type InterventionConfig } from "./counterfactual";
 import { bindMetricsPanel } from "./metrics";
 import { bindParameterPanel } from "./params";
 import { bindTransportBar, type TransportBarElements } from "./transport";
@@ -21,7 +21,10 @@ export interface MountExperienceOptions {
   elements: ExperienceElements;
   /** When true, hide generic metrics and use counterfactual panel instead. */
   counterfactualMode?: boolean;
+  /** @deprecated Use intervention */
   perturbField?: string;
+  intervention?: InterventionConfig;
+  showOutcomes?: boolean;
 }
 
 export interface ExperienceHandle {
@@ -43,6 +46,8 @@ export function mountExperienceUI(options: MountExperienceOptions): ExperienceHa
       runtime,
       elements: elements.counterfactual,
       perturbField: options.perturbField,
+      intervention: options.intervention,
+      showOutcomes: options.showOutcomes,
     });
     disposers.push(counterfactual.dispose);
   } else if (elements.metrics) {

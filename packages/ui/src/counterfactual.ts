@@ -1,4 +1,4 @@
-import type { ComputeRuntime } from "@compute-experience/core";
+import type { ComputeRuntime, StateFrame } from "@compute-experience/core";
 
 export interface CounterfactualElements {
   /** Sidebar region for branch identity + intervention + inspector */
@@ -10,18 +10,38 @@ export interface CounterfactualElements {
   divergence?: HTMLElement;
 }
 
+export type StateInterventionConfig = {
+  mode: "state";
+  perturbField: string;
+  defaultEpsilon?: number;
+};
+
+export type ParameterInterventionConfig = {
+  mode: "parameter";
+  parameterId: string;
+  /** Value applied to the branch immediately after fork. */
+  forkValue: number;
+  label?: string;
+};
+
+export type InterventionConfig = StateInterventionConfig | ParameterInterventionConfig;
+
 export interface CounterfactualOptions {
   runtime: ComputeRuntime;
   elements: CounterfactualElements;
-  /** State field to perturb at fork. Default: first manifest state field. */
+  /** How the counterfactual branch diverges from the original at the fork. */
+  intervention?: InterventionConfig;
+  /** @deprecated Use intervention.mode === "state" */
   perturbField?: string;
-  /** Default epsilon applied on fork when caller does not specify nudge. */
+  /** @deprecated Use intervention.defaultEpsilon */
   defaultEpsilon?: number;
+  /** Show peak-infected style outcome comparison when a branch exists. */
+  showOutcomes?: boolean;
 }
 
 export interface CounterfactualHandle {
   sync(): void;
-  applyIntervention(epsilon: number): void;
+  applyIntervention(value: number): void;
   seekToDivergence(): void;
   dispose(): void;
 }
@@ -42,13 +62,44 @@ function fmtDelta(value: number): string {
   return `${sign}${value.toFixed(3)}`;
 }
 
+function fmtDay(value: number): string {
+  return Number.isFinite(value) ? value.toFixed(1) : "—";
+}
+
+function resolveIntervention(options: CounterfactualOptions): InterventionConfig {
+  if (options.intervention) return options.intervention;
+  const perturbField =
+    options.perturbField ??
+    options.runtime.manifest.state[0] ??
+    Object.keys(options.runtime.currentFrame()?.state ?? {})[0] ??
+    "x";
+  return {
+    mode: "state",
+    perturbField,
+    defaultEpsilon: options.defaultEpsilon ?? 1e-8,
+  };
+}
+
+function peakInfected(frames: readonly StateFrame[]): { peak: number; day: number } {
+  let peak = 0;
+  let day = 0;
+  for (const frame of frames) {
+    const infected = frame.state.infected ?? 0;
+    if (infected > peak) {
+      peak = infected;
+      day = frame.t;
+    }
+  }
+  return { peak, day };
+}
+
 export function bindCounterfactualUI(options: CounterfactualOptions): CounterfactualHandle {
   const { runtime, elements } = options;
-  const perturbField =
-    options.perturbField ?? runtime.manifest.state[0] ?? Object.keys(runtime.currentFrame()?.state ?? {})[0] ?? "x";
-  const defaultEpsilon = options.defaultEpsilon ?? 1e-8;
+  const intervention = resolveIntervention(options);
+  const showOutcomes = options.showOutcomes ?? intervention.mode === "parameter";
 
-  let epsilon = defaultEpsilon;
+  let stateEpsilon =
+    intervention.mode === "state" ? (intervention.defaultEpsilon ?? 1e-8) : 0;
   let forkMarker: HTMLElement | null = null;
 
   const ensureForkMarker = () => {
@@ -60,16 +111,24 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
     return forkMarker;
   };
 
-  const applyIntervention = (nextEpsilon: number) => {
+  const applyIntervention = (value: number) => {
     const branch = runtime.comparisonRuns[0];
     if (!branch?.forkPoint) return;
-    epsilon = nextEpsilon;
+
+    if (intervention.mode === "parameter") {
+      branch.setParameters({ [intervention.parameterId]: value });
+      sync();
+      return;
+    }
+
+    stateEpsilon = value;
     const forkFrame = branch.timeline.frames[branch.forkPoint.index];
     if (!forkFrame) return;
     const base = { ...forkFrame.state };
-    if (perturbField in base) {
-      const original = runtime.primaryRun.timeline.frames[branch.forkPoint.index]?.state[perturbField];
-      base[perturbField] = (original ?? base[perturbField] ?? 0) + epsilon;
+    if (intervention.perturbField in base) {
+      const original =
+        runtime.primaryRun.timeline.frames[branch.forkPoint.index]?.state[intervention.perturbField];
+      base[intervention.perturbField] = (original ?? base[intervention.perturbField] ?? 0) + stateEpsilon;
     }
     branch.setForkState(base);
     sync();
@@ -90,7 +149,6 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
     const branchFrame = branch?.currentFrame();
     const unit = runtime.model.time?.unit ?? "s";
 
-    // Fork marker on timeline
     const marker = ensureForkMarker();
     if (branch?.forkPoint && runtime.timeline.length > 1) {
       const pct = (branch.forkPoint.index / Math.max(1, runtime.timeline.length - 1)) * 100;
@@ -101,7 +159,6 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
       marker.hidden = true;
     }
 
-    // Divergence chip
     if (elements.divergence) {
       if (comparison?.divergenceTime != null) {
         elements.divergence.hidden = false;
@@ -113,7 +170,6 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
       }
     }
 
-    // Panel
     elements.panel.replaceChildren();
 
     const tree = document.createElement("div");
@@ -141,43 +197,83 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
             <span class="branch-dot"></span>
             <span>ORIGINAL</span>
           </div>
-          <p class="branch-hint">Pause, seek to a moment, then Fork to branch an alternative future from the same past.</p>
+          <p class="branch-hint">Pause near day 20, then Fork to explore an alternative intervention timing from the same past.</p>
         </div>`;
     }
     elements.panel.appendChild(tree);
 
     if (branch && branch.forkPoint) {
-      const forkIdx = branch.forkPoint.index;
-      const originalState = runtime.primaryRun.timeline.frames[forkIdx]?.state ?? {};
-      const counterState = branch.timeline.frames[forkIdx]?.state ?? {};
+      const interventionBlock = document.createElement("div");
+      interventionBlock.className = "intervention";
+      interventionBlock.innerHTML = `<div class="intervention-kicker">Intervene</div>`;
 
-      const intervention = document.createElement("div");
-      intervention.className = "intervention";
-      intervention.innerHTML = `
-        <div class="intervention-kicker">Intervene</div>
-        <div class="intervention-cards">
-          <div class="state-card original">
-            <span class="state-card-label">Original</span>
-            <code>${perturbField} = ${fmtState(originalState[perturbField] ?? 0)}</code>
+      if (intervention.mode === "parameter") {
+        const paramDef = runtime.manifest.parameters.find((p) => p.id === intervention.parameterId);
+        const label = intervention.label ?? paramDef?.label ?? intervention.parameterId;
+        const unitLabel = paramDef?.unit ? ` ${paramDef.unit}` : "";
+        const originalValue = runtime.primaryRun.parameters[intervention.parameterId] ?? 0;
+        const counterValue = branch.parameters[intervention.parameterId] ?? originalValue;
+        const min = Number(paramDef?.min ?? 0);
+        const max = Number(paramDef?.max ?? 120);
+        const step = Number(paramDef?.step ?? 1);
+
+        interventionBlock.innerHTML += `
+          <div class="intervention-cards">
+            <div class="state-card original">
+              <span class="state-card-label">Original</span>
+              <code>${label} = ${fmtDay(originalValue)}${unitLabel}</code>
+            </div>
+            <div class="state-card counter">
+              <span class="state-card-label">Counterfactual</span>
+              <code>${label} = ${fmtDay(counterValue)}${unitLabel}</code>
+            </div>
           </div>
-          <div class="state-card counter">
-            <span class="state-card-label">Counterfactual</span>
-            <code>${perturbField} = ${fmtState(counterState[perturbField] ?? 0)}</code>
+          <div class="epsilon-block">
+            <label class="epsilon-label">${label}</label>
+            <input class="range epsilon" type="range" min="${min}" max="${max}" step="${step}" value="${counterValue}">
+            <div class="epsilon-readout">${fmtDay(counterValue)}${unitLabel}</div>
+          </div>`;
+
+        const slider = interventionBlock.querySelector<HTMLInputElement>(".epsilon")!;
+        const readout = interventionBlock.querySelector(".epsilon-readout")!;
+        slider.addEventListener("input", () => {
+          const next = Number(slider.value);
+          readout.textContent = `${fmtDay(next)}${unitLabel}`;
+          applyIntervention(next);
+        });
+      } else {
+        const forkIdx = branch.forkPoint.index;
+        const originalState = runtime.primaryRun.timeline.frames[forkIdx]?.state ?? {};
+        const counterState = branch.timeline.frames[forkIdx]?.state ?? {};
+        const field = intervention.perturbField;
+
+        interventionBlock.innerHTML += `
+          <div class="intervention-cards">
+            <div class="state-card original">
+              <span class="state-card-label">Original</span>
+              <code>${field} = ${fmtState(originalState[field] ?? 0)}</code>
+            </div>
+            <div class="state-card counter">
+              <span class="state-card-label">Counterfactual</span>
+              <code>${field} = ${fmtState(counterState[field] ?? 0)}</code>
+            </div>
           </div>
-        </div>
-        <div class="epsilon-block">
-          <label class="epsilon-label">Perturbation ε on ${perturbField}</label>
-          <input class="range epsilon" type="range" min="-8" max="-2" step="0.1" value="${Math.log10(Math.max(epsilon, 1e-12))}">
-          <div class="epsilon-readout">ε = ${epsilon.toExponential(1)}</div>
-        </div>`;
-      const slider = intervention.querySelector<HTMLInputElement>(".epsilon")!;
-      const readout = intervention.querySelector(".epsilon-readout")!;
-      slider.addEventListener("input", () => {
-        const next = 10 ** Number(slider.value);
-        readout.textContent = `ε = ${next.toExponential(1)}`;
-        applyIntervention(next);
-      });
-      elements.panel.appendChild(intervention);
+          <div class="epsilon-block">
+            <label class="epsilon-label">Perturbation ε on ${field}</label>
+            <input class="range epsilon" type="range" min="-8" max="-2" step="0.1" value="${Math.log10(Math.max(stateEpsilon, 1e-12))}">
+            <div class="epsilon-readout">ε = ${stateEpsilon.toExponential(1)}</div>
+          </div>`;
+
+        const slider = interventionBlock.querySelector<HTMLInputElement>(".epsilon")!;
+        const readout = interventionBlock.querySelector(".epsilon-readout")!;
+        slider.addEventListener("input", () => {
+          const next = 10 ** Number(slider.value);
+          readout.textContent = `ε = ${next.toExponential(1)}`;
+          applyIntervention(next);
+        });
+      }
+
+      elements.panel.appendChild(interventionBlock);
     }
 
     if (frame) {
@@ -207,6 +303,33 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
 
       inspector.innerHTML = `<div class="inspector-kicker">Inspect</div><div class="inspector-time">t = ${frame.t.toFixed(2)} ${unit}</div>${table}`;
       elements.panel.appendChild(inspector);
+    }
+
+    if (showOutcomes && branch) {
+      const primaryOutcome = peakInfected(runtime.primaryRun.timeline.frames);
+      const branchOutcome = peakInfected(branch.timeline.frames);
+      const outcomes = document.createElement("div");
+      outcomes.className = "outcomes";
+      outcomes.innerHTML = `
+        <div class="inspector-kicker">Outcomes</div>
+        <table class="inspector-table">
+          <thead><tr><th></th><th>Original</th><th class="col-counter">Counter</th><th class="col-delta">Δ</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>peak infected</td>
+              <td>${fmtState(primaryOutcome.peak)}</td>
+              <td class="col-counter">${fmtState(branchOutcome.peak)}</td>
+              <td class="col-delta">${fmtDelta(branchOutcome.peak - primaryOutcome.peak)}</td>
+            </tr>
+            <tr>
+              <td>peak day</td>
+              <td>${fmtDay(primaryOutcome.day)}${unit}</td>
+              <td class="col-counter">${fmtDay(branchOutcome.day)}${unit}</td>
+              <td class="col-delta">${fmtDelta(branchOutcome.day - primaryOutcome.day)}${unit}</td>
+            </tr>
+          </tbody>
+        </table>`;
+      elements.panel.appendChild(outcomes);
     }
   };
 

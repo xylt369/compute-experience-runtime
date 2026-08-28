@@ -8,6 +8,6 @@ export type { TransportBar, TransportBarElements, TransportBarOptions } from "./
 export { bindModelChrome } from "./chrome";
 export type { ModelChrome, ModelChromeElements, ModelChromeOptions } from "./chrome";
 export { bindCounterfactualUI } from "./counterfactual";
-export type { CounterfactualElements, CounterfactualHandle, CounterfactualOptions } from "./counterfactual";
+export type { CounterfactualElements, CounterfactualHandle, CounterfactualOptions, InterventionConfig, ParameterInterventionConfig, StateInterventionConfig } from "./counterfactual";
 export { mountExperienceUI } from "./experience";
 export type { ExperienceElements, ExperienceHandle, MountExperienceOptions } from "./experience";

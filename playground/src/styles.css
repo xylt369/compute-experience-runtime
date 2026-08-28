@@ -454,6 +454,15 @@ button, input, select { font: inherit; }
 .inspector-table td.col-counter { color: #e4b36a; }
 .inspector-table td.col-delta { color: var(--counter); }
 
+.outcomes {
+  margin-top: 12px;
+  padding: 16px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+}
+
 /* ── Main stage ── */
 .main { display: flex; flex-direction: column; min-width: 0; }
 

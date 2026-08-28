@@ -13,9 +13,10 @@ export function simulate(
   let state = { ...(options?.initial ?? model.initial(parameters)) };
   const frames: StateFrame[] = [];
   for (let i = 0; i < steps; i += 1) {
+    const t = i * dt;
     const derived = model.derive ? model.derive(state, parameters) : {};
-    frames.push({ t: i * dt, state: { ...state }, derived: { ...derived } });
-    state = model.step(state, parameters, dt);
+    frames.push({ t, state: { ...state }, derived: { ...derived } });
+    state = model.step(state, parameters, dt, t);
   }
   return frames;
 }
@@ -38,7 +39,8 @@ export function continueSimulate(
   let state = { ...options.fromState };
   const frames: StateFrame[] = [];
   for (let i = 1; i <= options.steps; i += 1) {
-    state = model.step(state, parameters, dt);
+    const t = options.fromTime + (i - 1) * dt;
+    state = model.step(state, parameters, dt, t);
     const derived = model.derive ? model.derive(state, parameters) : {};
     frames.push({
       t: options.fromTime + i * dt,

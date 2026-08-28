@@ -1,11 +1,22 @@
 import { defineModel, type ModelDefinition } from "@compute-experience/core";
 
+function effectiveContactRate(
+  parameters: Record<string, unknown>,
+  t = 0,
+): number {
+  const beta = Math.max(0, Number(parameters.contactRate));
+  const start = Math.max(0, Number(parameters.interventionStartDay ?? 20));
+  const factor = Math.min(1, Math.max(0, Number(parameters.interventionFactor ?? 0.45)));
+  return t >= start ? beta * factor : beta;
+}
+
 export const sir: ModelDefinition = defineModel({
   manifest: {
     id: "sir-epidemic",
-    name: "SIR epidemic",
-    description: "A deterministic compartment model for susceptible, infected, and recovered populations.",
-    version: "0.1.0",
+    name: "SIR Counterfactual",
+    description:
+      "A deterministic epidemic scenario: same past, different intervention timing, different future.",
+    version: "0.2.0",
     renderer: "timeseries-2d",
     parameters: [
       {
@@ -48,9 +59,29 @@ export const sir: ModelDefinition = defineModel({
         step: 1,
         unit: "people",
       },
+      {
+        id: "interventionStartDay",
+        label: "Intervention start",
+        type: "number",
+        default: 20,
+        min: 0,
+        max: 120,
+        step: 1,
+        unit: "d",
+      },
+      {
+        id: "interventionFactor",
+        label: "Contact retention",
+        type: "number",
+        default: 0.45,
+        min: 0.05,
+        max: 1,
+        step: 0.05,
+        unit: "×",
+      },
     ],
     state: ["susceptible", "infected", "recovered"],
-    derived: ["infectedFraction", "reproductionNumber", "peakRisk"],
+    derived: ["infectedFraction", "reproductionNumber", "interventionActive"],
   },
   time: { steps: 900, dt: 0.25, playbackRate: 25, unit: "d" },
   initial(parameters = {}) {
@@ -58,9 +89,9 @@ export const sir: ModelDefinition = defineModel({
     const i0 = Math.min(n, Math.max(0, Number(parameters.initialInfected ?? 10)));
     return { susceptible: n - i0, infected: i0, recovered: 0 };
   },
-  step(state, parameters, dt) {
+  step(state, parameters, dt, t = 0) {
     const n = Math.max(1, Number(parameters.population));
-    const beta = Math.max(0, Number(parameters.contactRate));
+    const beta = effectiveContactRate(parameters, t);
     const gamma = Math.max(0, Number(parameters.recoveryRate));
     let { susceptible: s, infected: i, recovered: r } = state;
     const dS = (-beta * s * i) / n;
@@ -75,10 +106,11 @@ export const sir: ModelDefinition = defineModel({
     const n = Math.max(1, Number(parameters.population));
     const beta = Math.max(0, Number(parameters.contactRate));
     const gamma = Math.max(0, Number(parameters.recoveryRate));
+    const start = Math.max(0, Number(parameters.interventionStartDay ?? 20));
     return {
       infectedFraction: state.infected / n,
       reproductionNumber: gamma ? beta / gamma : Number.POSITIVE_INFINITY,
-      peakRisk: (beta * state.infected) / n,
+      interventionActive: start,
     };
   },
 });

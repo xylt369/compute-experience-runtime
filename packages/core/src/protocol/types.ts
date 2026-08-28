@@ -61,6 +61,8 @@ export interface ModelDefinition {
     state: Record<string, number>,
     parameters: Record<string, unknown>,
     dt: number,
+    /** Simulation time at the start of this step (optional; time-aware models only). */
+    t?: number,
   ): Record<string, number>;
   derive?(state: Record<string, number>, parameters: Record<string, unknown>): Record<string, number>;
   time?: ModelTime;
