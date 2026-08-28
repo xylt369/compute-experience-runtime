@@ -94,6 +94,23 @@ describe("runtime inspect / intervene / replay", () => {
     expect(runtime.currentIndex()).toBe(29);
   });
 
+  it("does not seek when following a nested term", () => {
+    const runtime = createRuntime({ model: lorenz, rendererRegistry: createRendererRegistry() });
+    runtime.rebuild();
+    runtime.seekIndex(30);
+    runtime.inspect(30, "z");
+    runtime.inspect(30, "z", "x_times_y", { push: true });
+    expect(runtime.currentIndex()).toBe(30);
+  });
+
+  it("matches trace values to simulated state for x, y, and z", () => {
+    const frames = simulate(lorenz, PARAMS);
+    for (const field of ["x", "y", "z"] as const) {
+      const trace = explainField(lorenz, frames, 55, field, PARAMS)!;
+      expect(trace.result.value).toBeCloseTo(frames[55]!.state[field], 8);
+    }
+  });
+
   it("supports recursive inspection navigation", () => {
     const runtime = createRuntime({ model: lorenz, rendererRegistry: createRendererRegistry() });
     runtime.rebuild();

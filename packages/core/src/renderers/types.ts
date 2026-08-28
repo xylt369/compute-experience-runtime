@@ -5,6 +5,10 @@ export interface RendererMountOptions {
   overlay?: HTMLElement;
   onParams?: (params: Record<string, number>) => void;
   onInitialState?: (state: Record<string, number>) => void;
+  /** Screen-space anchor for in-world inspection overlays. */
+  onInspectionAnchor?: (point: { x: number; y: number } | null) => void;
+  /** Fired when the user picks a point on the visible trajectory. */
+  onTrajectoryPick?: (pick: { frameIndex: number; screen: { x: number; y: number } }) => void;
 }
 
 /** Optional multi-run view for comparison-capable renderers. */
@@ -45,7 +49,10 @@ export interface RendererView<Frame = ModelFrame, Manifest = ModelManifest> {
     frameIndex: number;
     field: string;
     highlightFrameIndex: number;
+    pathFrames?: number[];
   };
+  /** Whether the primary run is currently advancing. */
+  playing?: boolean;
 }
 
 export interface RuntimeRenderer<Frame = ModelFrame, Manifest = ModelManifest> {

@@ -2,6 +2,7 @@ import type { ComputeRuntime } from "@compute-experience/core";
 import { bindModelChrome, type ModelChromeElements } from "./chrome";
 import { bindCounterfactualUI, type CounterfactualElements, type CounterfactualHandle, type InterventionConfig } from "./counterfactual";
 import { bindInspectorUI, type InspectorElements, type InspectorHandle } from "./inspector";
+import { bindMicroscopeUI, type MicroscopeElements, type MicroscopeHandle } from "./microscope";
 import { bindMetricsPanel } from "./metrics";
 import { bindParameterPanel } from "./params";
 import { bindTransportBar, type TransportBarElements } from "./transport";
@@ -11,6 +12,7 @@ export interface ExperienceElements extends ModelChromeElements {
   metrics?: HTMLElement;
   counterfactual?: CounterfactualElements;
   inspector?: InspectorElements;
+  microscope?: MicroscopeElements;
   viewport: HTMLElement;
   overlay?: HTMLElement;
   play?: HTMLButtonElement;
@@ -25,11 +27,14 @@ export interface MountExperienceOptions {
   counterfactualMode?: boolean;
   /** When true, use computational inspector (trace / intervene / replay). */
   inspectorMode?: boolean;
+  /** When true, use in-world computational microscope (Lorenz). */
+  microscopeMode?: boolean;
   /** @deprecated Use intervention */
   perturbField?: string;
   intervention?: InterventionConfig;
   showOutcomes?: boolean;
   onInspectorFocus?: () => void;
+  onInspectionAnchor?: (point: { x: number; y: number } | null) => void;
 }
 
 export interface ExperienceHandle {
@@ -37,6 +42,7 @@ export interface ExperienceHandle {
   dispose(): void;
   counterfactual?: CounterfactualHandle;
   inspector?: InspectorHandle;
+  microscope?: MicroscopeHandle;
 }
 
 export function mountExperienceUI(options: MountExperienceOptions): ExperienceHandle {
@@ -44,11 +50,19 @@ export function mountExperienceUI(options: MountExperienceOptions): ExperienceHa
   const disposers: Array<() => void> = [];
   let counterfactual: CounterfactualHandle | undefined;
   let inspector: InspectorHandle | undefined;
+  let microscope: MicroscopeHandle | undefined;
 
   if (elements.params) {
     disposers.push(bindParameterPanel({ root: elements.params, runtime }).dispose);
   }
-  if (options.inspectorMode && elements.inspector) {
+  if (options.microscopeMode && elements.microscope) {
+    microscope = bindMicroscopeUI({
+      runtime,
+      elements: elements.microscope,
+      onAnchor: options.onInspectionAnchor,
+    });
+    disposers.push(microscope.dispose);
+  } else if (options.inspectorMode && elements.inspector) {
     inspector = bindInspectorUI({
       runtime,
       elements: elements.inspector,
@@ -84,7 +98,17 @@ export function mountExperienceUI(options: MountExperienceOptions): ExperienceHa
     disposers.push(transport.dispose);
   }
 
-  runtime.mount({ viewport: elements.viewport, overlay: elements.overlay });
+  runtime.mount({
+    viewport: elements.viewport,
+    overlay: elements.overlay,
+    onInspectionAnchor: (point) => {
+      options.onInspectionAnchor?.(point);
+      microscope?.setAnchor(point);
+    },
+    onTrajectoryPick: (pick) => {
+      microscope?.handleTrajectoryPick(pick);
+    },
+  });
 
   return {
     sync() {
@@ -92,6 +116,7 @@ export function mountExperienceUI(options: MountExperienceOptions): ExperienceHa
       transport?.sync();
       counterfactual?.sync();
       inspector?.sync();
+      microscope?.sync();
     },
     dispose() {
       for (const dispose of disposers) dispose();
@@ -99,5 +124,6 @@ export function mountExperienceUI(options: MountExperienceOptions): ExperienceHa
     },
     counterfactual,
     inspector,
+    microscope,
   };
 }

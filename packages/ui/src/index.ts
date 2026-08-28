@@ -11,5 +11,7 @@ export { bindCounterfactualUI } from "./counterfactual";
 export type { CounterfactualElements, CounterfactualHandle, CounterfactualOptions, InterventionConfig, ParameterInterventionConfig, StateInterventionConfig } from "./counterfactual";
 export { bindInspectorUI } from "./inspector";
 export type { InspectorElements, InspectorHandle, InspectorOptions } from "./inspector";
+export { bindMicroscopeUI } from "./microscope";
+export type { MicroscopeElements, MicroscopeHandle, MicroscopeOptions } from "./microscope";
 export { mountExperienceUI } from "./experience";
 export type { ExperienceElements, ExperienceHandle, MountExperienceOptions } from "./experience";

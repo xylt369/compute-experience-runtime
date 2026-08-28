@@ -35,6 +35,8 @@ export type RuntimeListener = (event: RuntimeEvent) => void;
 export interface RuntimeMountTarget {
   viewport: HTMLElement;
   overlay?: HTMLElement;
+  onInspectionAnchor?: (point: { x: number; y: number } | null) => void;
+  onTrajectoryPick?: (pick: { frameIndex: number; screen: { x: number; y: number } }) => void;
 }
 
 export interface CreateRuntimeOptions {
@@ -179,8 +181,13 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
             frameIndex: activeInspection.frameIndex,
             field: activeInspection.field,
             highlightFrameIndex: activeInspection.frameIndex,
+            pathFrames: activeInspection.navigation.reduce<number[]>((acc, item) => {
+              if (!acc.includes(item.frameIndex)) acc.push(item.frameIndex);
+              return acc;
+            }, []),
           }
         : undefined,
+      playing: primaryRun.isPlaying || syncPlaying,
     });
   };
 
@@ -280,6 +287,8 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
     mountTarget.overlay?.replaceChildren();
     const mountOptions: RendererMountOptions = {
       overlay: mountTarget.overlay,
+      onInspectionAnchor: mountTarget.onInspectionAnchor,
+      onTrajectoryPick: mountTarget.onTrajectoryPick,
       onParams: (patch) => {
         primaryRun.setParameters(patch);
         notify({ type: "parameters", parameters: { ...primaryRun.parameters }, runId: primaryRun.id });
@@ -469,9 +478,11 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
         navigation: [...inspectionNav],
       };
       activeInspection = state;
-      if (options?.push || options?.seek) {
+      if (options?.seek) {
         primaryRun.pause();
         primaryRun.seekIndex(idx);
+      } else if (options?.push) {
+        primaryRun.pause();
       }
       notify({ type: "inspect", state });
       pushView();

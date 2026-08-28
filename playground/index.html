@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Compute Experience</title>
+  <title>Lorenz Computational Microscope</title>
 </head>
 <body>
   <div class="app">
     <header class="top">
       <div class="brand-block">
         <div class="brand">Compute Experience</div>
-        <div class="brand-sub">Computational Inspector</div>
+        <div class="brand-sub" id="brandSub">Computational Microscope</div>
       </div>
       <div class="actions">
         <div class="action-group action-primary">
@@ -45,9 +45,9 @@
       <main class="main">
         <div class="subbar">
           <span class="subbar-id" id="modelId">—</span>
-          <span class="subbar-flow" id="runtimeLabel">run · inspect · trace · replay</span>
+          <span class="subbar-flow" id="runtimeLabel">watch · hold · ask · follow · touch · release · replay</span>
         </div>
-        <div class="stage">
+        <div class="stage" id="microscopeStage">
           <div class="stage-vignette"></div>
           <div class="grid"></div>
           <div class="hud">
@@ -56,6 +56,10 @@
             <div class="pill pill-muted" id="rendererPill">renderer —</div>
             <button class="pill pill-divergence" id="divergence" type="button" hidden></button>
           </div>
+          <div class="microscope-constants" id="microscopeConstants" hidden></div>
+          <div class="microscope-state" id="microscopeStateReadout" hidden></div>
+          <button class="microscope-restore" id="microscopeRestore" type="button" hidden>restore</button>
+          <div class="microscope-recipe" id="microscopeRecipe" hidden></div>
           <div class="viewport" id="viewport"></div>
           <div class="renderer-overlay" id="rendererOverlay"></div>
           <div class="inspector-lens" id="inspectorLens" hidden></div>
@@ -70,8 +74,8 @@
         </div>
         <footer class="footer">
           <div class="footer-copy">
-            <div class="footer-kicker">Inspect · trace · intervene · replay</div>
-            <p>Enter the computation: select a value, trace its ancestors, intervene, and watch the future reshape.</p>
+            <div class="footer-kicker">Enter the computation</div>
+            <p>One world. Ask why. Follow ancestry. Touch a value. Watch the future reshape.</p>
           </div>
           <div class="footer-code">model → run → fork → experience</div>
         </footer>

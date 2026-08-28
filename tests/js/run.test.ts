@@ -83,6 +83,23 @@ describe("ComputationalRun", () => {
     expect(parent.currentIndex()).toBe(5);
     expect(branch.currentIndex()).toBe(30);
   });
+
+  it("reshapeAt preserves prefix and recomputes the future in place", () => {
+    const run = new ComputationalRun({ model: lorenz });
+    run.rebuild();
+    const before = run.timeline.frames.map((frame) => ({ ...frame.state }));
+    const index = 45;
+    const patched = { ...before[index]!, x: before[index]!.x + 0.08 };
+    run.reshapeAt(index, patched);
+
+    for (let i = 0; i < index; i += 1) {
+      expect(run.timeline.frames[i]!.state.x).toBe(before[i]!.x);
+    }
+    expect(run.timeline.frames[index]!.state.x).toBeCloseTo(patched.x, 8);
+    expect(run.timeline.frames[index + 8]!.state.x).not.toBe(before[index + 8]!.x);
+    expect(run.timeline.length).toBe(before.length);
+    expect(run.parentRunId).toBeUndefined();
+  });
 });
 
 describe("compareRuns and deltas", () => {

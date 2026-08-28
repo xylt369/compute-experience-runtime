@@ -4,7 +4,7 @@
 
 > Write the model. Let the runtime handle the experience.
 
-Compute Experience Runtime is an open-source library for turning computational models into interactive experiences. A developer defines **what** to compute; the runtime owns **runs** — persistent, navigable, forkable execution histories — and turns them into experiences.
+Compute Experience Runtime is an open-source library for turning computational models into interactive experiences. A developer defines **what** to compute; the runtime owns **runs** — persistent, navigable execution histories — and turns them into experiences where a person can **enter the computation**.
 
 The central boundary:
 
@@ -15,31 +15,61 @@ Model
   ↓
 Run
   ↓
-State History
+State History + Trace
   ↓
-Fork / Intervene / Compare
+Runtime
   ↓
 Experience
 ```
 
-- **Model** — computation rules (`initial` / `step` / `derive`) and a manifest.
+- **Model** — computation rules (`initial` / `step` / `derive`), optional authored `explain()`, and a manifest.
 - **Run** — one concrete execution history under particular parameters and state.
-- **Experience** — playback, inspection, and comparison of one or more runs.
+- **Experience** — playback, inspection, trace navigation, intervention, and replay of a run.
 
-Computation is not a disposable function call. A run is a persistent, navigable, forkable object.
+Computation is not a disposable function call. A run is a persistent object whose history can be inspected, followed, touched, and reshaped.
 
 This is **not** an AI platform. There is no LLM integration, authentication, cloud backend, or account system in this repository.
+
+## The product question
+
+Traditional software treats computation as a black box:
+
+```text
+Input → computation → output
+```
+
+This project explores:
+
+```text
+Computational World
+      ↓
+    Inspect
+      ↓
+     Trace
+      ↓
+   Intervene
+      ↓
+    Replay
+      ↓
+ Observe consequence
+```
+
+The playground's first complete experience is the **Lorenz Computational Microscope** — one computational world where the trajectory is the interface.
+
+```text
+watch → hold → ask → follow → touch → release → replay
+```
 
 ## Packages
 
 | Path | Role |
 | --- | --- |
-| `packages/core` | `@compute-experience/core` — model protocol, Run, timeline, player, fork/compare, snapshots, `createRuntime()` |
+| `packages/core` | `@compute-experience/core` — model protocol, Run, timeline, player, inspect/intervene, fork/compare, snapshots, `createRuntime()` |
 | `packages/renderers` | `@compute-experience/renderers` — trajectory, pendulum, and timeseries renderers + registry |
-| `packages/ui` | `@compute-experience/ui` — manifest-driven parameter, metric, and transport panels |
-| `playground/` | Browser demo that **consumes** the runtime (not the runtime itself) |
+| `packages/ui` | `@compute-experience/ui` — manifest-driven UI, computational microscope, counterfactual panels |
+| `playground/` | Browser demo (consumes the runtime; not the runtime itself) |
 | `examples/` | Model definitions using `defineModel()` |
-| `bridge/` + Python under `examples/` | Authoring protocol for offline NDJSON export (not the live browser backend) |
+| `bridge/` + Python under `examples/` | Offline NDJSON export protocol (not the live browser backend) |
 
 ## Quick start
 
@@ -56,9 +86,55 @@ Python protocol tests:
 python -m pytest -q
 ```
 
-## Define a model
+## Lorenz Computational Microscope
 
-A model is a plain object with `manifest`, `time`, `initial`, `step`, and optional `derive`:
+The playground opens on **Lorenz attractor** in world-first mode:
+
+1. **Watch** — the trajectory runs in a full-bleed world.
+2. **Hold** — click the trajectory or pause; the current point becomes a precise instrument cursor.
+3. **Ask** — click a trajectory point or an `x` / `y` / `z` readout; an authored computation appears in place.
+4. **Follow** — click terms (`x·y`, `x`, …) to move deeper; state references jump to their temporal ancestors on the trajectory.
+5. **Touch** — after reaching a concrete state value, edit it.
+6. **Release** — commit the intervention; the past stays still, the future recomputes and grows forward from the seam.
+7. **Return / restore** — leave inspection or restore the pre-intervention world.
+
+There is **no** default split-screen ORIGINAL / COUNTERFACTUAL view for Lorenz. Intervention reshapes the visible world in place.
+
+```typescript
+runtime.pause();
+runtime.inspect(420, "z");
+runtime.inspect(419, "x", null, { push: true, seek: true });
+runtime.intervene({ frameIndex: 419, field: "x", value: 8.5 });
+runtime.play(); // future grows from the seam on the same trajectory
+```
+
+### Authored traces
+
+Lorenz implements optional `explain(context, field)` returning a structured `ComputationTrace`:
+
+```text
+z_next
+  ├── z(t)
+  ├── x(t) · y(t)
+  │    ├── x(t)
+  │    └── y(t)
+  ├── β · z(t)
+  └── dt
+```
+
+This is **author-provided execution structure**, not automatic causal inference, symbolic differentiation, or LLM narration.
+
+Frame semantics:
+
+```text
+input state at frame N−1
+        ↓
+      step()
+        ↓
+result state at frame N
+```
+
+## Define a model
 
 ```typescript
 import { defineModel } from "@compute-experience/core";
@@ -89,9 +165,9 @@ export const myModel = defineModel({
 });
 ```
 
-The manifest drives parameter controls in the playground automatically. Do not hardcode sliders per model.
+The manifest drives parameter controls automatically. Do not hardcode sliders per model.
 
-## Create a runtime and fork a run
+## Create a runtime
 
 ```typescript
 import { createRuntime, defaultParameters } from "@compute-experience/core";
@@ -105,84 +181,29 @@ const runtime = createRuntime({
 });
 
 runtime.rebuild();
-runtime.seek(4.7);
-
-// Fork a branch at time 4.7
-const runB = runtime.forkAtTime(4.7);
-runB.setParameters({ rate: 1.4 });
-// or intervene on state directly at the fork point:
-// runB.setForkState({ x: runB.currentFrame()!.state.x + 0.1 });
-
-runtime.setSyncPlayback(true);
-runtime.play(); // primary + branch advance together
-
-const diff = runtime.compare();
-console.log(diff?.divergenceIndex, diff?.stateDifferences);
+runtime.play();
 
 mountExperienceUI({
   runtime,
-  elements: {
-    params: document.getElementById("params")!,
-    metrics: document.getElementById("metrics")!,
-    viewport: document.getElementById("viewport")!,
-    play: document.getElementById("play") as HTMLButtonElement,
-    scrub: document.getElementById("scrub") as HTMLInputElement,
-    time: document.getElementById("time")!,
-  },
+  microscopeMode: true, // Lorenz playground path
+  elements: { viewport, play, scrub, time, /* microscope elements */ },
 });
 ```
 
-Public API (stable surface):
+### Public API (stable surface)
 
 - **Playback:** `play()`, `pause()`, `toggle()`, `seek(time)`, `seekIndex(index)`, `step(delta)`
 - **Runs:** `primaryRun`, `runs`, `comparisonRuns`, `forkAt(index)`, `forkAtTime(time)`, `clearBranches()`, `compare()`, `setSyncPlayback(enabled)`
+- **Inspection:** `trace()`, `inspect()`, `inspectionBack()`, `clearInspection()`
+- **Intervention:** `intervene()`, `reshape` (read-only metadata), `ComputationalRun.reshapeAt()`
 - **State:** `rebuild()`, `setParameters(patch)`, `setInitialState(state)`, `currentFrame()`, `currentIndex()`
-- **Snapshots:** `snapshot(includeFrames?)`, `restore(snapshot)` — includes branched runs when present
-- **Events:** `subscribe(listener)` — `frame`, `rebuild`, `parameters`, `run-created`, `run-forked`, `run-updated`, `run-seek`, `run-state-changed`
-- **Rendering:** `mount({ viewport, overlay? })`, `unmount()`, `resize()`
+- **Snapshots:** `snapshot(includeFrames?)`, `restore(snapshot)`
+- **Events:** `subscribe(listener)` — `frame`, `inspect`, `reshape`, `rebuild`, `run-forked`, …
+- **Rendering:** `mount({ viewport, overlay?, onInspectionAnchor?, onTrajectoryPick? })`, `unmount()`, `resize()`
 
-## Computational inspector (experimental)
+## Fork and compare (secondary)
 
-Lorenz is the first model with an optional authored `explain()` hook. The playground exposes **Inspect → Trace → Intervene → Replay**:
-
-```text
-select value → see authored computation → click ancestor → go deeper → edit → replay → future reshapes
-```
-
-This is **author-provided execution structure**, not automatic causal inference.
-
-```typescript
-const trace = runtime.trace(420, "z");
-runtime.inspect(420, "z");
-runtime.intervene({ frameIndex: 419, field: "x", value: 8.5 });
-// primary run reshapes in-place; fork/compare is internal machinery, not the default UX
-```
-
-Core additions:
-
-- `explain(context, field)` on `ModelDefinition` (optional)
-- `runtime.trace()`, `runtime.inspect()`, `runtime.intervene()`
-- `ComputationalRun.reshapeAt()` for in-place replay
-
-## Counterfactual computation
-
-The playground opens on **Lorenz attractor** as a counterfactual instrument:
-
-```text
-Run → Observe → Seek → Fork → Intervene → Compare futures
-```
-
-1. **Play** one run (ORIGINAL).
-2. **Pause** and **seek** to a moment in its history.
-3. **Fork** — creates COUNTERFACTUAL from the exact cursor state.
-4. **Intervene** — perturb state (e.g. `x += ε`) via the explicit ORIGINAL / COUNTERFACTUAL readout.
-5. **Play** — both futures advance together on a shared timeline.
-6. **Divergence** appears as a clickable event; click to rewind just before separation and step through it.
-7. **Inspect** state and Δ in the sidebar. **Re-fork** from another point after clearing the branch.
-
-The key idea:
-
-> A computation is not only something that produces an output. A run is a navigable history from which alternative futures can be explored.
+Fork remains useful infrastructure for exploring alternative futures — especially on non-chaotic models.
 
 ```typescript
 runtime.pause();
@@ -191,43 +212,34 @@ const branch = runtime.forkAtTime(5.2);
 branch.setForkState({ ...branch.currentFrame()!.state, x: originalX + 1e-8 });
 runtime.setSyncPlayback(true);
 runtime.play();
-const diff = runtime.compare(); // divergenceTime, divergenceMagnitude, stateDifferences
+const diff = runtime.compare();
 ```
 
-Same past → different intervention → different future.
+Fork is **not** the primary Lorenz experience. In-place `intervene()` may use fork/rebuild machinery internally, but the user sees:
+
+```text
+touch → future reshapes
+```
 
 ### SIR counterfactual showcase
 
-Select **SIR Counterfactual** in the playground to test the same interaction on a non-chaotic decision system:
+Select **SIR Counterfactual** in the playground for a decision-system fork/compare demo:
 
 ```text
 history → fork → intervention timing → alternative future → comparison
 ```
 
-Scenario: contact-rate reduction begins on **day 20** in the original run. Pause near day 15–20, **Fork**, then move intervention start to **day 10** on the branch only. Both runs share the same epidemic history up to the fork; only the future diverges.
-
-> The point is not to visualize an epidemic more beautifully. The point is to make alternative histories first-class objects.
-
-```typescript
-runtime.pause();
-runtime.seekIndex(day15Index);
-runtime.forkAt(day15Index);
-runtime.comparisonRuns[0]!.setParameters({ interventionStartDay: 10 });
-runtime.setSyncPlayback(true);
-runtime.play();
-```
-
-Outcome comparison (peak infected, peak day) appears in the sidebar when branches are active.
+Pause near day 15–20, **Fork**, move intervention start to **day 10** on the branch only. Both runs share history up to the fork; only the future diverges.
 
 ## Renderers
 
 ```typescript
-renderer: "trajectory-3d"   // Lorenz, Rössler (supports multi-run compare)
+renderer: "trajectory-3d"   // Lorenz, Rössler (multi-run compare when branched)
 renderer: "pendulum-2d"     // nonlinear pendulum
-renderer: "timeseries-2d"  // SIR counterfactual / logistic growth (SIR supports multi-run compare)
+renderer: "timeseries-2d"  // SIR counterfactual / logistic growth
 ```
 
-Single-run renderers keep working. Comparison-capable renderers may read `view.primaryRun` and `view.comparisonRuns`.
+`trajectory-3d` supports trajectory picking, inspection threading along the path, and in-place reshape visualization (future grows from the intervention seam).
 
 ## Snapshots
 
@@ -239,39 +251,19 @@ Snapshots are deterministic, JSON-compatible objects supporting multi-run trees:
   "version": "0.1.0",
   "params": { "sigma": 10, "rho": 28, "beta": 2.67 },
   "cursor": 42,
-  "savedAt": "2026-08-28T00:00:00.000Z",
-  "frames": [],
-  "primaryRunId": "run_1_...",
-  "syncPlayback": true,
-  "runs": [
-    { "id": "run_1_...", "params": {}, "cursor": 42, "frames": [] },
-    { "id": "run_2_...", "parentRunId": "run_1_...", "forkIndex": 42, "params": {}, "cursor": 42, "frames": [] }
-  ]
+  "runs": [{ "id": "run_1_...", "params": {}, "cursor": 42, "frames": [] }]
 }
 ```
 
 ## Built-in models
 
-| Model | Renderer |
+| Model | Playground experience |
 | --- | --- |
-| Lorenz attractor | `trajectory-3d` |
-| Rössler attractor | `trajectory-3d` |
-| Simple pendulum | `pendulum-2d` |
-| SIR Counterfactual | `timeseries-2d` |
-| Logistic growth (`custom-model`) | `timeseries-2d` |
-
-## Create a third-party model
-
-See [`examples/custom-model/`](examples/custom-model/). The authoring file defines only the model. The playground registers it in the catalog and reuses the same `createRuntime()` + `mountExperienceUI()` path — no new UI.
-
-```bash
-# model only
-examples/custom-model/model.ts
-
-# how the experience appears (already provided)
-createRuntime({ model: customModel, rendererRegistry })
-mountExperienceUI({ runtime, elements })
-```
+| Lorenz attractor | **Computational Microscope** (default) |
+| SIR Counterfactual | Fork / compare showcase |
+| Rössler attractor | Standard manifest UI |
+| Simple pendulum | Standard manifest UI |
+| Logistic growth (`custom-model`) | Standard manifest UI |
 
 ## Architecture
 
@@ -279,7 +271,7 @@ mountExperienceUI({ runtime, elements })
 Third-party Model
        │
        ▼
-Model Protocol (manifest + initial/step/derive)
+Model Protocol (manifest + initial/step/derive + optional explain)
        │
        ▼
 Computational Run(s)
@@ -288,28 +280,18 @@ Computational Run(s)
    ▼   ▼   ▼
 State Player Snapshot
        │
-  Fork / Compare
+  Inspect / Intervene / Fork / Compare
        │
        ▼
 Renderer Registry
        │
        ▼
-  Experience
+  Experience (world · focus · trace lens · timeline)
 ```
 
 ## Python authoring protocol
 
 Python models under `examples/` follow the same contract for offline simulation:
-
-```python
-MANIFEST = {...}
-
-def initial(parameters): ...
-def step(state, parameters, dt): ...
-def derive(state, parameters): ...  # optional
-```
-
-Run as NDJSON:
 
 ```bash
 python bridge/author.py examples/rossler_model.py \
@@ -323,15 +305,15 @@ Schema: [`packages/core/src/protocol/manifest-schema.json`](packages/core/src/pr
 
 - **Runtime foundation:** model protocol, playground consumer
 - **Manifest-driven UI:** `@compute-experience/ui`
-- **Third-party custom-model:** model-only authoring proof
-- **Runtime v0.2 Computational Runs:** Run, fork, compare, synced playback
-- **Counterfactual Lorenz showcase:** fork, intervene, divergence, inspect, re-fork
-- **SIR counterfactual showcase:** intervention timing fork/compare on a decision system
-- **Computational inspector (Lorenz):** authored trace, recursive inspection, in-place replay
+- **Computational Runs:** Run, fork, compare, synced playback
+- **Lorenz Computational Microscope:** world-first inspect → trace → touch → in-place replay
+- **SIR counterfactual showcase:** intervention timing fork/compare
+- **Authored traces:** `explain()`, `ComputationTrace`, recursive inspection
 
 ## Deliberate non-goals
 
-- AI / LLM model generation
+- AI / LLM model generation or narration
 - Authentication, accounts, database, cloud deployment
-- WebGPU migration, advanced 3D editor, arbitrary code execution
-- Python live compute bridge (WASM / hot reload) — future work
+- Automatic causal inference, symbolic engines, source-code tracing
+- WebGPU migration, arbitrary code execution
+- Python live compute bridge — future work

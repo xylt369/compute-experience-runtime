@@ -1144,3 +1144,404 @@ button, input, select { font: inherit; }
   .action-sep { display: none; }
   .hint { display: none; }
 }
+
+/* ── Lorenz Computational Microscope ── */
+body.mode-microscope .layout {
+  grid-template-columns: 1fr;
+}
+
+body.mode-microscope .sidebar,
+body.mode-microscope .drawer-backdrop,
+body.mode-microscope .subbar,
+body.mode-microscope .footer,
+body.mode-microscope .hud,
+body.mode-microscope .inspector-lens {
+  display: none !important;
+}
+
+body.mode-microscope .top {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: auto;
+  z-index: 12;
+  height: auto;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+body.mode-microscope .top .actions {
+  pointer-events: auto;
+}
+
+body.mode-microscope .brand-block,
+body.mode-microscope .action-primary,
+body.mode-microscope .action-sep,
+body.mode-microscope #drawerToggle,
+body.mode-microscope #reset,
+body.mode-microscope #save,
+body.mode-microscope #restore,
+body.mode-microscope #export,
+body.mode-microscope #import {
+  display: none;
+}
+
+body.mode-microscope .control-select {
+  min-width: 120px;
+  opacity: 0.55;
+  border-color: transparent;
+  background: rgba(8, 11, 15, 0.45);
+  font-size: 11px;
+}
+
+body.mode-microscope .control-select:hover {
+  opacity: 1;
+  border-color: var(--line-strong);
+}
+
+body.mode-microscope .renderer-overlay .legend,
+body.mode-microscope .renderer-overlay .hint,
+body.mode-microscope .renderer-overlay .toolbar {
+  display: none;
+}
+
+body.mode-microscope .timeline-shell {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(480px, calc(100% - 40px));
+  bottom: 14px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+body.mode-microscope .play-btn {
+  width: 30px;
+  height: 30px;
+  font-size: 10px;
+}
+
+body.mode-microscope .time {
+  min-width: 52px;
+  font-size: 10px;
+}
+
+.microscope-constants {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 5;
+  display: flex;
+  gap: 14px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+  background: rgba(8, 11, 15, 0.55);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+.micro-const {
+  font: 10px var(--font-mono);
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.micro-const strong {
+  color: rgba(168, 176, 184, 0.9);
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.microscope-state {
+  position: absolute;
+  left: 16px;
+  bottom: 68px;
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.micro-state {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  background: rgba(8, 11, 15, 0.62);
+  backdrop-filter: blur(10px);
+  color: var(--muted);
+  font: 10px var(--font-mono);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.micro-state span {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.micro-state strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.micro-state.is-held {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.micro-state.is-active {
+  border-color: rgba(210, 156, 92, 0.55);
+  box-shadow: 0 0 0 1px rgba(210, 156, 92, 0.12);
+  color: #c9a05a;
+}
+
+.microscope-restore {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 5;
+  padding: 6px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  background: rgba(8, 11, 15, 0.55);
+  backdrop-filter: blur(10px);
+  color: var(--muted);
+  font: 10px var(--font-mono);
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.microscope-restore:hover {
+  color: var(--soft);
+  border-color: rgba(210, 156, 92, 0.35);
+}
+
+.microscope-recipe {
+  position: absolute;
+  z-index: 6;
+  width: min(300px, 42vw);
+  pointer-events: none;
+}
+
+.microscope-recipe:not([hidden]) {
+  pointer-events: auto;
+}
+
+.micro-recipe {
+  padding: 14px 14px 12px;
+  border: 1px solid rgba(210, 156, 92, 0.22);
+  border-radius: 12px;
+  background: rgba(8, 10, 13, 0.88);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.42);
+}
+
+.micro-paths {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.micro-path {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: 9px var(--font-mono);
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  padding: 0;
+}
+
+.micro-path.is-current {
+  color: #e8c07a;
+}
+
+.micro-path.is-fade {
+  color: rgba(168, 176, 184, 0.55);
+}
+
+.micro-path.is-dim {
+  color: rgba(123, 134, 144, 0.28);
+}
+
+.micro-path-sep {
+  color: rgba(255, 255, 255, 0.15);
+  font-size: 9px;
+}
+
+.micro-eq {
+  margin-bottom: 8px;
+  font: 11px var(--font-mono);
+  color: rgba(168, 176, 184, 0.85);
+  line-height: 1.45;
+}
+
+.micro-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font: 11px var(--font-mono);
+  color: var(--muted);
+}
+
+.micro-result strong {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.micro-focus {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.micro-focus-label {
+  font: 10px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #c9a05a;
+}
+
+.micro-focus-value {
+  font: 18px var(--font-mono);
+  color: var(--text);
+}
+
+.micro-operands {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.micro-operand {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: 11px var(--font-mono);
+  text-align: left;
+}
+
+.micro-operand.is-state {
+  border-color: rgba(210, 156, 92, 0.12);
+  background: rgba(210, 156, 92, 0.04);
+}
+
+.micro-operand.is-const {
+  opacity: 0.72;
+}
+
+.micro-operand.is-const span {
+  color: var(--muted);
+}
+
+.micro-operand.is-clickable {
+  cursor: pointer;
+}
+
+.micro-operand.is-clickable:hover {
+  border-color: rgba(210, 156, 92, 0.35);
+  background: rgba(210, 156, 92, 0.07);
+}
+
+.micro-operand span {
+  color: var(--muted);
+}
+
+.micro-touch-toggle {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px dashed rgba(210, 156, 92, 0.28);
+  border-radius: 8px;
+  background: rgba(210, 156, 92, 0.03);
+  color: var(--soft);
+  font: 10px var(--font-mono);
+  cursor: pointer;
+  text-align: left;
+}
+
+.micro-touch {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.micro-touch label {
+  font: 10px var(--font-mono);
+  color: var(--muted);
+}
+
+.micro-touch-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  font: 12px var(--font-mono);
+}
+
+.micro-touch-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.micro-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--soft);
+  font: 10px var(--font-mono);
+  cursor: pointer;
+}
+
+.micro-release {
+  border-color: rgba(210, 156, 92, 0.35);
+  color: #e8c07a;
+}
+
+.micro-close {
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: 9px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.micro-close:hover {
+  color: var(--soft);
+}

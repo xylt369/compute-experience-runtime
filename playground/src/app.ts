@@ -18,7 +18,7 @@ const SIR_ID = "sir-epidemic";
 const DEFAULT_LORENZ_EPSILON = 1e-8;
 const SIR_FORK_INTERVENTION_DAY = 10;
 
-const INSPECTOR_MODELS = new Set([LORENZ_ID]);
+const MICROSCOPE_MODELS = new Set([LORENZ_ID]);
 
 const COUNTERFACTUAL_CONFIG: Record<string, InterventionConfig> = {
   [SIR_ID]: {
@@ -32,6 +32,7 @@ const COUNTERFACTUAL_CONFIG: Record<string, InterventionConfig> = {
 const registry = createRendererRegistry();
 
 const els = {
+  brandSub: document.querySelector<HTMLElement>("#brandSub")!,
   modelSelect: document.querySelector<HTMLSelectElement>("#modelSelect")!,
   sidebarEyebrow: document.querySelector<HTMLElement>("#sidebarEyebrow")!,
   fork: document.querySelector<HTMLButtonElement>("#fork")!,
@@ -63,14 +64,19 @@ const els = {
   scrub: document.querySelector<HTMLInputElement>("#scrub")!,
   play: document.querySelector<HTMLButtonElement>("#play")!,
   time: document.querySelector<HTMLElement>("#time")!,
+  microscopeStage: document.querySelector<HTMLElement>("#microscopeStage")!,
+  microscopeRecipe: document.querySelector<HTMLElement>("#microscopeRecipe")!,
+  microscopeConstants: document.querySelector<HTMLElement>("#microscopeConstants")!,
+  microscopeStateReadout: document.querySelector<HTMLElement>("#microscopeStateReadout")!,
+  microscopeRestore: document.querySelector<HTMLButtonElement>("#microscopeRestore")!,
 };
 
 let currentId = LORENZ_ID;
 let runtime: ComputeRuntime | null = null;
 let experience: ExperienceHandle | null = null;
 
-function isInspectorModel(modelId: string): boolean {
-  return INSPECTOR_MODELS.has(modelId);
+function isMicroscopeModel(modelId: string): boolean {
+  return MICROSCOPE_MODELS.has(modelId);
 }
 
 function isCounterfactualModel(modelId: string): boolean {
@@ -113,21 +119,34 @@ function syncBranchActions() {
   els.fork.textContent = hasBranch ? "Re-fork" : "Fork";
 }
 
+function syncBodyMode(modelId: string) {
+  const microscope = isMicroscopeModel(modelId);
+  document.body.classList.toggle("mode-microscope", microscope);
+  els.microscopeConstants.hidden = !microscope;
+  els.microscopeStateReadout.hidden = !microscope;
+  els.brandSub.textContent = microscope
+    ? "Computational Microscope"
+    : isCounterfactualModel(modelId)
+      ? "Counterfactual Run"
+      : "Model Playground";
+  document.title = microscope ? "Lorenz Computational Microscope" : "Compute Experience";
+}
+
 function syncSidebarMode(modelId: string) {
-  const inspector = isInspectorModel(modelId);
+  const microscope = isMicroscopeModel(modelId);
   const counterfactual = isCounterfactualModel(modelId);
-  els.sidebarEyebrow.textContent = inspector
-    ? "Computational inspector"
+  els.sidebarEyebrow.textContent = microscope
+    ? "Computational microscope"
     : counterfactual
       ? "Counterfactual run"
       : "Model manifest";
-  els.params.hidden = inspector || counterfactual;
+  els.params.hidden = microscope || counterfactual;
   els.counterfactualPanel.hidden = !counterfactual;
-  els.inspectorPanel.hidden = !inspector;
-  els.metrics.hidden = inspector || counterfactual;
+  els.inspectorPanel.hidden = true;
+  els.metrics.hidden = microscope || counterfactual;
   els.fork.hidden = !counterfactual;
   els.clearBranch.hidden = !counterfactual;
-  els.stateFields.hidden = !inspector;
+  els.stateFields.hidden = true;
 }
 
 function attachRuntime(modelId: string, options?: { params?: Record<string, number>; snapshot?: ExperienceSnapshot }) {
@@ -136,6 +155,7 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
 
   experience?.dispose();
   currentId = modelId;
+  syncBodyMode(modelId);
   syncSidebarMode(modelId);
 
   runtime = createRuntime({
@@ -145,28 +165,29 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     syncPlayback: true,
   });
 
-  const inspector = isInspectorModel(modelId);
+  const microscope = isMicroscopeModel(modelId);
   const counterfactual = isCounterfactualModel(modelId);
   const intervention = counterfactualConfig(modelId);
 
   experience = mountExperienceUI({
     runtime,
-    inspectorMode: inspector,
+    microscopeMode: microscope,
     counterfactualMode: counterfactual,
     intervention,
     showOutcomes: intervention?.mode === "parameter",
-    onInspectorFocus: () => setDrawer(true),
     elements: {
       modelName: els.modelName,
       modelDesc: els.modelDesc,
       modelId: els.modelId,
       params: els.params,
       metrics: els.metrics,
-      inspector: inspector
+      microscope: microscope
         ? {
-            panel: els.inspectorPanel,
-            stateFields: els.stateFields,
-            lens: els.inspectorLens,
+            recipe: els.microscopeRecipe,
+            constants: els.microscopeConstants,
+            stateReadout: els.microscopeStateReadout,
+            stage: els.microscopeStage,
+            restore: els.microscopeRestore,
           }
         : undefined,
       counterfactual: counterfactual
@@ -200,6 +221,8 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     runtime.restore(options.snapshot);
     experience.sync();
     syncBranchActions();
+  } else if (microscope) {
+    runtime.play();
   }
 }
 
