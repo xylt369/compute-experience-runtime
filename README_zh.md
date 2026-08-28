@@ -161,3 +161,11 @@ runtime.setSyncPlayback(true);
 - Python 实时桥接（未来工作）
 
 更多 API 与架构细节见 [英文 README](README.md)。
+
+## 体验层
+
+```text
+Model → Run → Experience Contract → 交互语义 + 世界表达
+```
+
+模型在 manifest 中声明 `experience`（能力、profile、targets），运行时通过 `resolveExperience(model)` 解析，UI 按 contract 挂载——而非在 playground 里写 `if (model === "lorenz")`。

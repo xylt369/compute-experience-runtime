@@ -28,6 +28,38 @@ export interface ModelCapabilities {
   deterministic?: boolean;
 }
 
+export type ExperienceProfile = "microscope" | "counterfactual" | "instrument" | "manifest";
+
+export interface ExperienceCapabilities {
+  inspect: boolean;
+  trace: boolean;
+  intervene: boolean;
+  replay: boolean;
+  fork: boolean;
+  compare: boolean;
+}
+
+/** Declarative experience semantics (not UI layout). */
+export interface ModelExperience {
+  profile?: ExperienceProfile;
+  label?: string;
+  capabilities?: Partial<ExperienceCapabilities>;
+  targets?: string[];
+  roles?: Record<string, string>;
+  options?: {
+    autoPlay?: boolean;
+    showOutcomes?: boolean;
+    intervention?: {
+      mode: "state" | "parameter";
+      parameterId?: string;
+      forkValue?: number;
+      perturbField?: string;
+      defaultEpsilon?: number;
+      label?: string;
+    };
+  };
+}
+
 export interface ModelManifest {
   id: string;
   name: string;
@@ -39,6 +71,8 @@ export interface ModelManifest {
   renderer: string;
   time?: ModelTimeConfig;
   capabilities?: ModelCapabilities;
+  /** How this model can be experienced (semantic capabilities, not DOM). */
+  experience?: ModelExperience;
 }
 
 export interface StateFrame {

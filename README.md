@@ -259,11 +259,11 @@ Snapshots are deterministic, JSON-compatible objects supporting multi-run trees:
 
 | Model | Playground experience |
 | --- | --- |
-| Lorenz attractor | **Computational Microscope** (default) |
-| SIR Counterfactual | Fork / compare showcase |
-| Rössler attractor | Standard manifest UI |
-| Simple pendulum | Standard manifest UI |
-| Logistic growth (`custom-model`) | Standard manifest UI |
+| Lorenz attractor | **Computational Microscope** (`microscope`) |
+| SIR Counterfactual | **Epidemic History** (`counterfactual`) |
+| Simple pendulum | **Physical Pendulum** (`instrument`) |
+| Rössler attractor | **Dynamical Flow** (`instrument`) |
+| Logistic growth (`custom-model`) | Manifest playground |
 
 ## Architecture
 
@@ -275,19 +275,31 @@ Model Protocol (manifest + initial/step/derive + optional explain)
        │
        ▼
 Computational Run(s)
-   ┌───┼───┐
-   │   │   │
-   ▼   ▼   ▼
-State Player Snapshot
-       │
-  Inspect / Intervene / Fork / Compare
        │
        ▼
-Renderer Registry
+Experience Contract (capabilities + profile + targets)
        │
-       ▼
-  Experience (world · focus · trace lens · timeline)
+       ├──────────────────┐
+       ▼                  ▼
+Interaction            World
+Semantics              Expression
+       │                  │
+       └────────┬─────────┘
+                ▼
+           Experience UI
 ```
+
+Models define **computation**. Runs preserve **history**. Experiences define **how that history can be explored**. Renderers express each experience in the model's natural visual world.
+
+```typescript
+import { resolveExperience } from "@compute-experience/core";
+
+const contract = resolveExperience(model);
+// contract.profile: "microscope" | "counterfactual" | "instrument" | "manifest"
+// contract.capabilities: { inspect, trace, intervene, replay, fork, compare }
+```
+
+Shared interaction verbs (`watch`, `hold`, `ask`, `follow`, `touch`, `release`, `replay`) have consistent runtime semantics. Visual expression differs per model.
 
 ## Python authoring protocol
 

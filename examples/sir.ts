@@ -82,6 +82,27 @@ export const sir: ModelDefinition = defineModel({
     ],
     state: ["susceptible", "infected", "recovered"],
     derived: ["infectedFraction", "reproductionNumber", "interventionActive"],
+    experience: {
+      profile: "counterfactual",
+      label: "Epidemic History",
+      targets: ["susceptible", "infected", "recovered"],
+      roles: {
+        susceptible: "state",
+        infected: "state",
+        recovered: "state",
+        interventionStartDay: "parameter",
+      },
+      options: {
+        autoPlay: false,
+        showOutcomes: true,
+        intervention: {
+          mode: "parameter",
+          parameterId: "interventionStartDay",
+          forkValue: 10,
+          label: "Intervention start",
+        },
+      },
+    },
   },
   time: { steps: 900, dt: 0.25, playbackRate: 25, unit: "d" },
   initial(parameters = {}) {

@@ -14,6 +14,18 @@ export const rossler: ModelDefinition = defineModel({
     ],
     state: ["x", "y", "z"],
     derived: ["radius"],
+    experience: {
+      profile: "instrument",
+      label: "Dynamical Flow",
+      targets: ["x", "y", "z"],
+      capabilities: {
+        intervene: false,
+        replay: false,
+        fork: true,
+        compare: true,
+      },
+      options: { autoPlay: true },
+    },
   },
   time: { steps: 900, dt: 0.03, playbackRate: 3, unit: "s" },
   initial() {

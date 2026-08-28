@@ -60,7 +60,17 @@ export {
   writeStoredSnapshot,
 } from "./snapshot";
 
+export {
+  EMPTY_EXPERIENCE_CAPABILITIES,
+  experienceMatrix,
+  resolveExperience,
+} from "./experience";
+export type { ExperienceContract, InteractionVerb } from "./experience";
+
 export type {
+  ExperienceCapabilities,
+  ExperienceProfile,
+  ModelExperience,
   ExperienceSnapshot,
   ModelCapabilities,
   ModelDefinition,

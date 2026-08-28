@@ -305,6 +305,13 @@ export const lorenz: ModelDefinition = defineModel({
     ],
     state: ["x", "y", "z"],
     derived: ["radius"],
+    experience: {
+      profile: "microscope",
+      label: "Computational Microscope",
+      targets: ["x", "y", "z"],
+      roles: { x: "state", y: "state", z: "state" },
+      options: { autoPlay: true },
+    },
   },
   time: { steps: 900, dt: 0.01, playbackRate: 1.5, unit: "s" },
   initial() {

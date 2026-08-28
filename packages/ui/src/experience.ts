@@ -1,18 +1,34 @@
-import type { ComputeRuntime } from "@compute-experience/core";
+import type { ComputeRuntime, ExperienceContract } from "@compute-experience/core";
 import { bindModelChrome, type ModelChromeElements } from "./chrome";
-import { bindCounterfactualUI, type CounterfactualElements, type CounterfactualHandle, type InterventionConfig } from "./counterfactual";
+import {
+  bindCounterfactualUI,
+  type CounterfactualElements,
+  type CounterfactualHandle,
+  type InterventionConfig,
+} from "./counterfactual";
 import { bindInspectorUI, type InspectorElements, type InspectorHandle } from "./inspector";
+import { bindInstrumentUI, type InstrumentElements, type InstrumentHandle } from "./instrument";
 import { bindMicroscopeUI, type MicroscopeElements, type MicroscopeHandle } from "./microscope";
 import { bindMetricsPanel } from "./metrics";
 import { bindParameterPanel } from "./params";
 import { bindTransportBar, type TransportBarElements } from "./transport";
 
+export interface WorldElements {
+  stage: HTMLElement;
+  stateReadout: HTMLElement;
+  parameters?: HTMLElement;
+  recipe?: HTMLElement;
+  restore?: HTMLButtonElement;
+  panel?: HTMLElement;
+}
+
 export interface ExperienceElements extends ModelChromeElements {
   params?: HTMLElement;
   metrics?: HTMLElement;
+  world?: WorldElements;
   counterfactual?: CounterfactualElements;
+  /** @deprecated Use world + contract */
   inspector?: InspectorElements;
-  microscope?: MicroscopeElements;
   viewport: HTMLElement;
   overlay?: HTMLElement;
   play?: HTMLButtonElement;
@@ -22,14 +38,12 @@ export interface ExperienceElements extends ModelChromeElements {
 
 export interface MountExperienceOptions {
   runtime: ComputeRuntime;
+  contract: ExperienceContract;
   elements: ExperienceElements;
-  /** When true, hide generic metrics and use counterfactual panel instead. */
+  /** @deprecated Use contract */
   counterfactualMode?: boolean;
-  /** When true, use computational inspector (trace / intervene / replay). */
   inspectorMode?: boolean;
-  /** When true, use in-world computational microscope (Lorenz). */
   microscopeMode?: boolean;
-  /** @deprecated Use intervention */
   perturbField?: string;
   intervention?: InterventionConfig;
   showOutcomes?: boolean;
@@ -40,46 +54,95 @@ export interface MountExperienceOptions {
 export interface ExperienceHandle {
   sync(): void;
   dispose(): void;
+  contract: ExperienceContract;
   counterfactual?: CounterfactualHandle;
   inspector?: InspectorHandle;
   microscope?: MicroscopeHandle;
+  instrument?: InstrumentHandle;
+}
+
+function interventionFromContract(contract: ExperienceContract): InterventionConfig | undefined {
+  const raw = contract.options?.intervention;
+  if (!raw) return undefined;
+  if (raw.mode === "parameter" && raw.parameterId != null && raw.forkValue != null) {
+    return {
+      mode: "parameter",
+      parameterId: raw.parameterId,
+      forkValue: raw.forkValue,
+      label: raw.label,
+    };
+  }
+  if (raw.mode === "state" && raw.perturbField) {
+    return {
+      mode: "state",
+      perturbField: raw.perturbField,
+      defaultEpsilon: raw.defaultEpsilon,
+    };
+  }
+  return undefined;
 }
 
 export function mountExperienceUI(options: MountExperienceOptions): ExperienceHandle {
-  const { runtime, elements } = options;
+  const { runtime, contract, elements } = options;
   const disposers: Array<() => void> = [];
   let counterfactual: CounterfactualHandle | undefined;
   let inspector: InspectorHandle | undefined;
   let microscope: MicroscopeHandle | undefined;
+  let instrument: InstrumentHandle | undefined;
+  const world = elements.world;
 
-  if (elements.params) {
+  if (contract.profile === "manifest" && elements.params) {
     disposers.push(bindParameterPanel({ root: elements.params, runtime }).dispose);
   }
-  if (options.microscopeMode && elements.microscope) {
-    microscope = bindMicroscopeUI({
-      runtime,
-      elements: elements.microscope,
-      onAnchor: options.onInspectionAnchor,
-    });
-    disposers.push(microscope.dispose);
-  } else if (options.inspectorMode && elements.inspector) {
-    inspector = bindInspectorUI({
-      runtime,
-      elements: elements.inspector,
-      onFocus: options.onInspectorFocus,
-    });
-    disposers.push(inspector.dispose);
-  } else if (options.counterfactualMode && elements.counterfactual) {
-    counterfactual = bindCounterfactualUI({
-      runtime,
-      elements: elements.counterfactual,
-      perturbField: options.perturbField,
-      intervention: options.intervention,
-      showOutcomes: options.showOutcomes,
-    });
-    disposers.push(counterfactual.dispose);
-  } else if (elements.metrics) {
-    disposers.push(bindMetricsPanel({ root: elements.metrics, runtime }).dispose);
+
+  switch (contract.profile) {
+    case "microscope":
+      if (world) {
+        microscope = bindMicroscopeUI({
+          runtime,
+          elements: {
+            recipe: world.recipe!,
+            constants: world.parameters!,
+            stateReadout: world.stateReadout,
+            stage: world.stage,
+            restore: world.restore,
+          },
+          onAnchor: options.onInspectionAnchor,
+        });
+        disposers.push(microscope.dispose);
+      }
+      break;
+    case "counterfactual":
+      if (elements.counterfactual) {
+        counterfactual = bindCounterfactualUI({
+          runtime,
+          elements: elements.counterfactual,
+          intervention: options.intervention ?? interventionFromContract(contract),
+          showOutcomes: options.showOutcomes ?? contract.options?.showOutcomes,
+        });
+        disposers.push(counterfactual.dispose);
+      }
+      break;
+    case "instrument":
+      if (world) {
+        instrument = bindInstrumentUI({ runtime, contract, elements: world });
+        disposers.push(instrument.dispose);
+      }
+      break;
+    case "manifest":
+      if (elements.metrics) {
+        disposers.push(bindMetricsPanel({ root: elements.metrics, runtime }).dispose);
+      }
+      break;
+    default:
+      if (options.inspectorMode && elements.inspector) {
+        inspector = bindInspectorUI({
+          runtime,
+          elements: elements.inspector,
+          onFocus: options.onInspectorFocus,
+        });
+        disposers.push(inspector.dispose);
+      }
   }
 
   const chrome = bindModelChrome({ runtime, elements });
@@ -98,6 +161,8 @@ export function mountExperienceUI(options: MountExperienceOptions): ExperienceHa
     disposers.push(transport.dispose);
   }
 
+  const caps = contract.capabilities;
+
   runtime.mount({
     viewport: elements.viewport,
     overlay: elements.overlay,
@@ -105,18 +170,22 @@ export function mountExperienceUI(options: MountExperienceOptions): ExperienceHa
       options.onInspectionAnchor?.(point);
       microscope?.setAnchor(point);
     },
-    onTrajectoryPick: (pick) => {
-      microscope?.handleTrajectoryPick(pick);
-    },
+    onTrajectoryPick: caps.inspect
+      ? (pick) => {
+          microscope?.handleTrajectoryPick(pick);
+        }
+      : undefined,
   });
 
   return {
+    contract,
     sync() {
       chrome.sync();
       transport?.sync();
       counterfactual?.sync();
       inspector?.sync();
       microscope?.sync();
+      instrument?.sync();
     },
     dispose() {
       for (const dispose of disposers) dispose();
@@ -125,5 +194,6 @@ export function mountExperienceUI(options: MountExperienceOptions): ExperienceHa
     counterfactual,
     inspector,
     microscope,
+    instrument,
   };
 }

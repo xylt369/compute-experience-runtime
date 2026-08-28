@@ -1145,21 +1145,21 @@ button, input, select { font: inherit; }
   .hint { display: none; }
 }
 
-/* ── Lorenz Computational Microscope ── */
-body.mode-microscope .layout {
+/* ── Experience world shell (shared interaction grammar) ── */
+body.mode-world .layout {
   grid-template-columns: 1fr;
 }
 
-body.mode-microscope .sidebar,
-body.mode-microscope .drawer-backdrop,
-body.mode-microscope .subbar,
-body.mode-microscope .footer,
-body.mode-microscope .hud,
-body.mode-microscope .inspector-lens {
+body.mode-world .sidebar,
+body.mode-world .drawer-backdrop,
+body.mode-world .subbar,
+body.mode-world .footer,
+body.mode-world .hud,
+body.mode-world .inspector-lens {
   display: none !important;
 }
 
-body.mode-microscope .top {
+body.mode-world .top {
   position: absolute;
   top: 0;
   right: 0;
@@ -1173,23 +1173,38 @@ body.mode-microscope .top {
   pointer-events: none;
 }
 
-body.mode-microscope .top .actions {
+body.mode-world .top .actions {
   pointer-events: auto;
 }
 
-body.mode-microscope .brand-block,
-body.mode-microscope .action-primary,
-body.mode-microscope .action-sep,
-body.mode-microscope #drawerToggle,
-body.mode-microscope #reset,
-body.mode-microscope #save,
-body.mode-microscope #restore,
-body.mode-microscope #export,
-body.mode-microscope #import {
+body.mode-world[data-experience-profile="microscope"] .brand-block,
+body.mode-world[data-experience-profile="microscope"] .action-primary,
+body.mode-world[data-experience-profile="microscope"] .action-sep,
+body.mode-world[data-experience-profile="microscope"] #drawerToggle,
+body.mode-world[data-experience-profile="microscope"] #reset,
+body.mode-world[data-experience-profile="microscope"] #save,
+body.mode-world[data-experience-profile="microscope"] #restore,
+body.mode-world[data-experience-profile="microscope"] #export,
+body.mode-world[data-experience-profile="microscope"] #import,
+body.mode-world[data-experience-profile="instrument"] #drawerToggle,
+body.mode-world[data-experience-profile="instrument"] #reset,
+body.mode-world[data-experience-profile="instrument"] #save,
+body.mode-world[data-experience-profile="instrument"] #restore,
+body.mode-world[data-experience-profile="instrument"] #export,
+body.mode-world[data-experience-profile="instrument"] #import {
   display: none;
 }
 
-body.mode-microscope .control-select {
+body.mode-world[data-experience-profile="counterfactual"] #drawerToggle,
+body.mode-world[data-experience-profile="counterfactual"] #reset,
+body.mode-world[data-experience-profile="counterfactual"] #save,
+body.mode-world[data-experience-profile="counterfactual"] #restore,
+body.mode-world[data-experience-profile="counterfactual"] #export,
+body.mode-world[data-experience-profile="counterfactual"] #import {
+  display: none;
+}
+
+body.mode-world .control-select {
   min-width: 120px;
   opacity: 0.55;
   border-color: transparent;
@@ -1197,18 +1212,18 @@ body.mode-microscope .control-select {
   font-size: 11px;
 }
 
-body.mode-microscope .control-select:hover {
+body.mode-world .control-select:hover {
   opacity: 1;
   border-color: var(--line-strong);
 }
 
-body.mode-microscope .renderer-overlay .legend,
-body.mode-microscope .renderer-overlay .hint,
-body.mode-microscope .renderer-overlay .toolbar {
+body.mode-world .renderer-overlay .legend,
+body.mode-world .renderer-overlay .hint,
+body.mode-world .renderer-overlay .toolbar {
   display: none;
 }
 
-body.mode-microscope .timeline-shell {
+body.mode-world .timeline-shell {
   left: 50%;
   right: auto;
   transform: translateX(-50%);
@@ -1219,17 +1234,18 @@ body.mode-microscope .timeline-shell {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
-body.mode-microscope .play-btn {
+body.mode-world .play-btn {
   width: 30px;
   height: 30px;
   font-size: 10px;
 }
 
-body.mode-microscope .time {
+body.mode-world .time {
   min-width: 52px;
   font-size: 10px;
 }
 
+.world-parameters,
 .microscope-constants {
   position: absolute;
   top: 14px;
@@ -1245,6 +1261,7 @@ body.mode-microscope .time {
   pointer-events: none;
 }
 
+.world-const,
 .micro-const {
   font: 10px var(--font-mono);
   color: var(--muted);
@@ -1257,6 +1274,7 @@ body.mode-microscope .time {
   margin-left: 4px;
 }
 
+.world-state-readout,
 .microscope-state {
   position: absolute;
   left: 16px;
@@ -1267,6 +1285,7 @@ body.mode-microscope .time {
   pointer-events: auto;
 }
 
+.world-state,
 .micro-state {
   display: flex;
   flex-direction: column;
@@ -1304,6 +1323,7 @@ body.mode-microscope .time {
   color: #c9a05a;
 }
 
+.world-restore,
 .microscope-restore {
   position: absolute;
   top: 14px;
@@ -1321,11 +1341,31 @@ body.mode-microscope .time {
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
+.world-restore:hover,
 .microscope-restore:hover {
   color: var(--soft);
   border-color: rgba(210, 156, 92, 0.35);
 }
 
+.world-panel {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 6;
+  width: min(320px, 38vw);
+  max-height: calc(100% - 120px);
+  overflow: auto;
+  pointer-events: auto;
+}
+
+.world-panel .cf-panel,
+.world-panel .intervention,
+.world-panel .branch-tree,
+.world-panel .inspector {
+  margin-bottom: 10px;
+}
+
+.world-recipe,
 .microscope-recipe {
   position: absolute;
   z-index: 6;
@@ -1333,6 +1373,7 @@ body.mode-microscope .time {
   pointer-events: none;
 }
 
+.world-recipe:not([hidden]),
 .microscope-recipe:not([hidden]) {
   pointer-events: auto;
 }

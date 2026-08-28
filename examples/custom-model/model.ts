@@ -54,6 +54,11 @@ export const customModel: ModelDefinition = defineModel({
     ],
     state: ["population"],
     derived: ["growthPressure", "saturation"],
+    experience: {
+      profile: "manifest",
+      label: "Model Playground",
+      targets: ["population"],
+    },
   },
   time: { steps: 400, dt: 0.1, playbackRate: 8, unit: "t" },
   initial(parameters = {}) {

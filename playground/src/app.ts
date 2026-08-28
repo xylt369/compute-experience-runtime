@@ -1,7 +1,9 @@
 import {
   createRuntime,
   defaultParameters,
+  resolveExperience,
   type ComputeRuntime,
+  type ExperienceContract,
   type ExperienceSnapshot,
   downloadSnapshot,
   readSnapshotFile,
@@ -9,25 +11,13 @@ import {
   writeStoredSnapshot,
 } from "@compute-experience/core";
 import { createRendererRegistry } from "@compute-experience/renderers";
-import { mountExperienceUI, type ExperienceHandle, type InterventionConfig } from "@compute-experience/ui";
+import {
+  applyExperienceShell,
+  mountExperienceUI,
+  type ExperienceHandle,
+} from "@compute-experience/ui";
 import { models } from "../../examples";
 import "./styles.css";
-
-const LORENZ_ID = "lorenz-attractor";
-const SIR_ID = "sir-epidemic";
-const DEFAULT_LORENZ_EPSILON = 1e-8;
-const SIR_FORK_INTERVENTION_DAY = 10;
-
-const MICROSCOPE_MODELS = new Set([LORENZ_ID]);
-
-const COUNTERFACTUAL_CONFIG: Record<string, InterventionConfig> = {
-  [SIR_ID]: {
-    mode: "parameter",
-    parameterId: "interventionStartDay",
-    forkValue: SIR_FORK_INTERVENTION_DAY,
-    label: "Intervention start",
-  },
-};
 
 const registry = createRendererRegistry();
 
@@ -51,9 +41,7 @@ const els = {
   modelId: document.querySelector<HTMLElement>("#modelId")!,
   params: document.querySelector<HTMLElement>("#params")!,
   counterfactualPanel: document.querySelector<HTMLElement>("#counterfactualPanel")!,
-  inspectorPanel: document.querySelector<HTMLElement>("#inspectorPanel")!,
-  inspectorLens: document.querySelector<HTMLElement>("#inspectorLens")!,
-  stateFields: document.querySelector<HTMLElement>("#stateFields")!,
+  worldPanel: document.querySelector<HTMLElement>("#worldPanel")!,
   metrics: document.querySelector<HTMLElement>("#metrics")!,
   stateCount: document.querySelector<HTMLElement>("#stateCount")!,
   rendererPill: document.querySelector<HTMLElement>("#rendererPill")!,
@@ -64,37 +52,28 @@ const els = {
   scrub: document.querySelector<HTMLInputElement>("#scrub")!,
   play: document.querySelector<HTMLButtonElement>("#play")!,
   time: document.querySelector<HTMLElement>("#time")!,
-  microscopeStage: document.querySelector<HTMLElement>("#microscopeStage")!,
-  microscopeRecipe: document.querySelector<HTMLElement>("#microscopeRecipe")!,
-  microscopeConstants: document.querySelector<HTMLElement>("#microscopeConstants")!,
-  microscopeStateReadout: document.querySelector<HTMLElement>("#microscopeStateReadout")!,
-  microscopeRestore: document.querySelector<HTMLButtonElement>("#microscopeRestore")!,
+  worldStage: document.querySelector<HTMLElement>("#worldStage")!,
+  worldRecipe: document.querySelector<HTMLElement>("#worldRecipe")!,
+  worldParameters: document.querySelector<HTMLElement>("#worldParameters")!,
+  worldStateReadout: document.querySelector<HTMLElement>("#worldStateReadout")!,
+  worldRestore: document.querySelector<HTMLButtonElement>("#worldRestore")!,
 };
 
-let currentId = LORENZ_ID;
+let currentId = Object.keys(models)[0]!;
 let runtime: ComputeRuntime | null = null;
 let experience: ExperienceHandle | null = null;
-
-function isMicroscopeModel(modelId: string): boolean {
-  return MICROSCOPE_MODELS.has(modelId);
-}
-
-function isCounterfactualModel(modelId: string): boolean {
-  return modelId in COUNTERFACTUAL_CONFIG;
-}
-
-function counterfactualConfig(modelId: string): InterventionConfig | undefined {
-  return COUNTERFACTUAL_CONFIG[modelId];
-}
+let contract: ExperienceContract | null = null;
 
 function applyForkIntervention() {
-  const config = counterfactualConfig(currentId);
-  if (!config || !experience?.counterfactual) return;
-  if (config.mode === "parameter") {
-    experience.counterfactual.applyIntervention(config.forkValue);
+  const intervention = contract?.options?.intervention;
+  if (!intervention || !experience?.counterfactual) return;
+  if (intervention.mode === "parameter" && intervention.forkValue != null) {
+    experience.counterfactual.applyIntervention(intervention.forkValue);
     return;
   }
-  experience.counterfactual.applyIntervention(config.defaultEpsilon ?? DEFAULT_LORENZ_EPSILON);
+  if (intervention.mode === "state") {
+    experience.counterfactual.applyIntervention(intervention.defaultEpsilon ?? 1e-8);
+  }
 }
 
 function setDrawer(open: boolean) {
@@ -112,41 +91,20 @@ function flash(button: HTMLButtonElement, label: string) {
 
 function syncBranchActions() {
   const hasBranch = (runtime?.comparisonRuns.length ?? 0) > 0;
-  const counterfactual = isCounterfactualModel(currentId);
+  const canFork = contract?.capabilities.fork ?? false;
   els.clearBranch.disabled = !hasBranch;
-  els.fork.hidden = !counterfactual;
-  els.clearBranch.hidden = !counterfactual;
+  els.fork.hidden = !canFork;
+  els.clearBranch.hidden = !canFork;
   els.fork.textContent = hasBranch ? "Re-fork" : "Fork";
 }
 
-function syncBodyMode(modelId: string) {
-  const microscope = isMicroscopeModel(modelId);
-  document.body.classList.toggle("mode-microscope", microscope);
-  els.microscopeConstants.hidden = !microscope;
-  els.microscopeStateReadout.hidden = !microscope;
-  els.brandSub.textContent = microscope
-    ? "Computational Microscope"
-    : isCounterfactualModel(modelId)
-      ? "Counterfactual Run"
-      : "Model Playground";
-  document.title = microscope ? "Lorenz Computational Microscope" : "Compute Experience";
-}
-
-function syncSidebarMode(modelId: string) {
-  const microscope = isMicroscopeModel(modelId);
-  const counterfactual = isCounterfactualModel(modelId);
-  els.sidebarEyebrow.textContent = microscope
-    ? "Computational microscope"
-    : counterfactual
-      ? "Counterfactual run"
-      : "Model manifest";
-  els.params.hidden = microscope || counterfactual;
-  els.counterfactualPanel.hidden = !counterfactual;
-  els.inspectorPanel.hidden = true;
-  els.metrics.hidden = microscope || counterfactual;
-  els.fork.hidden = !counterfactual;
-  els.clearBranch.hidden = !counterfactual;
-  els.stateFields.hidden = true;
+function syncManifestChrome(modelId: string, exp: ExperienceContract) {
+  const manifestMode = exp.profile === "manifest";
+  els.sidebarEyebrow.textContent = manifestMode ? "Model manifest" : exp.label;
+  els.params.hidden = !manifestMode;
+  els.metrics.hidden = !manifestMode;
+  els.counterfactualPanel.hidden = true;
+  els.drawerToggle.hidden = !manifestMode;
 }
 
 function attachRuntime(modelId: string, options?: { params?: Record<string, number>; snapshot?: ExperienceSnapshot }) {
@@ -155,8 +113,17 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
 
   experience?.dispose();
   currentId = modelId;
-  syncBodyMode(modelId);
-  syncSidebarMode(modelId);
+  contract = resolveExperience(model);
+
+  applyExperienceShell(contract, {
+    brandSub: els.brandSub,
+    worldParameters: els.worldParameters,
+    worldStateReadout: els.worldStateReadout,
+    worldPanel: els.worldPanel,
+    fork: els.fork,
+    clearBranch: els.clearBranch,
+  });
+  syncManifestChrome(modelId, contract);
 
   runtime = createRuntime({
     model,
@@ -165,41 +132,40 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     syncPlayback: true,
   });
 
-  const microscope = isMicroscopeModel(modelId);
-  const counterfactual = isCounterfactualModel(modelId);
-  const intervention = counterfactualConfig(modelId);
+  const isWorld = contract.profile !== "manifest";
+  const counterfactualPanel =
+    contract.profile === "counterfactual" ? els.worldPanel : els.counterfactualPanel;
 
   experience = mountExperienceUI({
     runtime,
-    microscopeMode: microscope,
-    counterfactualMode: counterfactual,
-    intervention,
-    showOutcomes: intervention?.mode === "parameter",
+    contract,
     elements: {
       modelName: els.modelName,
       modelDesc: els.modelDesc,
       modelId: els.modelId,
       params: els.params,
       metrics: els.metrics,
-      microscope: microscope
+      world: isWorld
         ? {
-            recipe: els.microscopeRecipe,
-            constants: els.microscopeConstants,
-            stateReadout: els.microscopeStateReadout,
-            stage: els.microscopeStage,
-            restore: els.microscopeRestore,
+            stage: els.worldStage,
+            stateReadout: els.worldStateReadout,
+            parameters: els.worldParameters,
+            recipe: els.worldRecipe,
+            restore: els.worldRestore,
+            panel: els.worldPanel,
           }
         : undefined,
-      counterfactual: counterfactual
-        ? {
-            panel: els.counterfactualPanel,
-            timeline: els.timelineShell.querySelector(".scrub-wrap")!,
-            scrub: els.scrub,
-            divergence: els.divergence,
-          }
-        : undefined,
-      stateCount: els.stateCount,
-      rendererPill: els.rendererPill,
+      counterfactual:
+        contract.profile === "counterfactual"
+          ? {
+              panel: counterfactualPanel,
+              timeline: els.timelineShell.querySelector(".scrub-wrap")!,
+              scrub: els.scrub,
+              divergence: els.divergence,
+            }
+          : undefined,
+      stateCount: isWorld ? undefined : els.stateCount,
+      rendererPill: isWorld ? undefined : els.rendererPill,
       viewport: els.viewport,
       overlay: els.overlay,
       play: els.play,
@@ -221,7 +187,7 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     runtime.restore(options.snapshot);
     experience.sync();
     syncBranchActions();
-  } else if (microscope) {
+  } else if (contract.options?.autoPlay) {
     runtime.play();
   }
 }
@@ -239,7 +205,7 @@ els.modelSelect.addEventListener("change", () => {
 });
 els.reset.addEventListener("click", () => attachRuntime(currentId));
 els.fork.addEventListener("click", () => {
-  if (!runtime || !isCounterfactualModel(currentId)) return;
+  if (!runtime || !contract?.capabilities.fork) return;
   runtime.pause();
   const index = runtime.currentIndex();
   runtime.forkAt(index);
@@ -306,7 +272,7 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   if (editing) return;
-  if (event.code === "KeyF" && isCounterfactualModel(currentId)) {
+  if (event.code === "KeyF" && contract?.capabilities.fork) {
     event.preventDefault();
     els.fork.click();
     return;

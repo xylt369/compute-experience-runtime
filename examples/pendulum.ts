@@ -15,6 +15,12 @@ export const pendulum: ModelDefinition = defineModel({
     ],
     state: ["angle", "angularVelocity"],
     derived: ["period", "angularFrequency"],
+    experience: {
+      profile: "instrument",
+      label: "Physical Pendulum",
+      targets: ["angle", "angularVelocity"],
+      options: { autoPlay: true },
+    },
   },
   time: { steps: 900, dt: 0.016, playbackRate: 2, unit: "s" },
   initial(parameters = {}) {
