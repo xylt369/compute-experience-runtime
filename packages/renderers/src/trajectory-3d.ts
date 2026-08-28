@@ -367,9 +367,46 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     const branch = view.comparisonRuns?.[0];
     if (branch) {
       this.drawCompareTrajectories(ctx, primary, branch, width, height);
-    } else {
-      this.drawSingleTrajectory(ctx, primary, width, height, PRIMARY_RGB);
+      return;
     }
+
+    const reshape = view.reshape;
+    if (reshape && reshape.priorFrames.length > 1) {
+      const ghostFrames = reshape.priorFrames.map((frame) => ({
+        t: frame.t,
+        state: frame.state as { x: number; y: number; z: number },
+      }));
+      const sharedEnd = Math.max(0, reshape.frameIndex);
+      this.drawSegment(ctx, primary.frames, 0, sharedEnd, width, height, SHARED_RGB, 0.95);
+      this.drawSegment(
+        ctx,
+        ghostFrames as typeof primary.frames,
+        1,
+        ghostFrames.length - 1,
+        width,
+        height,
+        SHARED_RGB,
+        0.22,
+      );
+      this.drawSegment(ctx, primary.frames, reshape.frameIndex, primary.cursor, width, height, PRIMARY_RGB);
+
+      const forkFrame = primary.frames[reshape.frameIndex];
+      if (forkFrame) {
+        const forkPoint = this.project(
+          forkFrame.state as { x: number; y: number; z: number },
+          width,
+          height,
+        );
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(210, 156, 92, 0.85)";
+        ctx.lineWidth = 1.4;
+        ctx.arc(forkPoint.x, forkPoint.y, 6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      return;
+    }
+
+    this.drawSingleTrajectory(ctx, primary, width, height, PRIMARY_RGB);
   }
 
   private drawDot(ctx: CanvasRenderingContext2D, p: Point2D, rgb = PRIMARY_RGB, radius = 3.6) {

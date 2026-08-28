@@ -15,6 +15,8 @@ import type {
   RuntimeRenderer,
 } from "./renderers/types";
 import type { PlayerClock } from "./player";
+import { explainField } from "./inspect";
+import type { InspectionState, InspectionTarget, ReshapeInfo, StateIntervention } from "./trace";
 
 export type RuntimeEvent =
   | { type: "frame"; frame: StateFrame; index: number; playing: boolean; runId: string }
@@ -24,7 +26,9 @@ export type RuntimeEvent =
   | { type: "run-forked"; parentRunId: string; runId: string; forkIndex: number }
   | { type: "run-updated"; runId: string }
   | { type: "run-seek"; runId: string; index: number; time: number }
-  | { type: "run-state-changed"; runId: string };
+  | { type: "run-state-changed"; runId: string }
+  | { type: "inspect"; state: import("./trace").InspectionState | null }
+  | { type: "reshape"; frameIndex: number; field: string; runId: string };
 
 export type RuntimeListener = (event: RuntimeEvent) => void;
 
@@ -76,6 +80,21 @@ export interface ComputeRuntime {
   snapshot(includeFrames?: boolean): ExperienceSnapshot;
   restore(snapshot: ExperienceSnapshot): void;
 
+  /** Author-provided trace for a state field at a frame. */
+  trace(frameIndex: number, field: string): import("./trace").ComputationTrace | null;
+  /** Current inspection focus (trace navigation stack). */
+  inspect(
+    frameIndex?: number,
+    field?: string,
+    termId?: string | null,
+    options?: { push?: boolean; replace?: boolean },
+  ): InspectionState | null;
+  clearInspection(): void;
+  inspectionBack(): InspectionState | null;
+  /** Patch state at a frame and recompute the future in-place. */
+  intervene(intervention: StateIntervention): void;
+  readonly reshape: ReshapeInfo | null;
+
   subscribe(listener: RuntimeListener): () => void;
 
   mount(target: RuntimeMountTarget): void;
@@ -110,6 +129,9 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
   let activeRenderer: RuntimeRenderer | null = null;
   let mountedModelId = "";
   let mountTarget: RuntimeMountTarget | null = null;
+  let inspectionNav: InspectionTarget[] = [];
+  let reshapeInfo: ReshapeInfo | null = null;
+  let reshapeGeneration = 0;
 
   const notify = (event: RuntimeEvent) => {
     for (const listener of listeners) listener(event);
@@ -143,6 +165,14 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
       comparisonRuns: branches.map((run) => toRunView(run, false)),
       comparison,
       syncTime: syncPlayback ? syncTime : undefined,
+      reshape: reshapeInfo
+        ? {
+            frameIndex: reshapeInfo.frameIndex,
+            field: reshapeInfo.field,
+            priorFrames: reshapeInfo.priorFrames,
+            generation: reshapeGeneration,
+          }
+        : undefined,
     });
   };
 
@@ -386,6 +416,120 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
     setSyncPlayback(enabled) {
       syncPlayback = enabled;
       if (enabled && branches.length) seekAllToTime(primaryRun.currentTime());
+    },
+
+    trace(frameIndex, field) {
+      return explainField(model, primaryRun.timeline.frames, frameIndex, field, primaryRun.parameters);
+    },
+
+    inspect(frameIndex, field, termId = null, options) {
+      const idx = frameIndex ?? primaryRun.currentIndex();
+      const manifestFields = model.manifest.state;
+      const targetField = field ?? manifestFields[0] ?? "x";
+      const trace = explainField(model, primaryRun.timeline.frames, idx, targetField, primaryRun.parameters);
+      if (!trace) return null;
+
+      const entry: InspectionTarget = {
+        frameIndex: idx,
+        field: targetField,
+        termId,
+        label: termId ?? targetField,
+      };
+
+      if (options?.replace) {
+        inspectionNav = [entry];
+      } else if (options?.push) {
+        const last = inspectionNav[inspectionNav.length - 1];
+        const duplicate =
+          last &&
+          last.frameIndex === entry.frameIndex &&
+          last.field === entry.field &&
+          last.termId === entry.termId;
+        inspectionNav = duplicate ? inspectionNav : [...inspectionNav, entry];
+        if (!inspectionNav.length) inspectionNav = [entry];
+      } else {
+        inspectionNav = [entry];
+      }
+
+      const frame = primaryRun.timeline.frames[idx];
+      const state: InspectionState = {
+        frameIndex: idx,
+        field: targetField,
+        termId,
+        trace,
+        value: frame?.state[targetField] ?? trace.result.value,
+        navigation: [...inspectionNav],
+      };
+      notify({ type: "inspect", state });
+      return state;
+    },
+
+    clearInspection() {
+      inspectionNav = [];
+      notify({ type: "inspect", state: null });
+    },
+
+    inspectionBack() {
+      if (inspectionNav.length <= 1) {
+        inspectionNav = [];
+        notify({ type: "inspect", state: null });
+        return null;
+      }
+      inspectionNav = inspectionNav.slice(0, -1);
+      const prev = inspectionNav[inspectionNav.length - 1]!;
+      const trace = explainField(
+        model,
+        primaryRun.timeline.frames,
+        prev.frameIndex,
+        prev.field,
+        primaryRun.parameters,
+      );
+      if (!trace) return null;
+      const frame = primaryRun.timeline.frames[prev.frameIndex];
+      const state: InspectionState = {
+        frameIndex: prev.frameIndex,
+        field: prev.field,
+        termId: prev.termId,
+        trace,
+        value: frame?.state[prev.field] ?? trace.result.value,
+        navigation: [...inspectionNav],
+      };
+      notify({ type: "inspect", state });
+      return state;
+    },
+
+    intervene(intervention) {
+      runtime.pause();
+      if (branches.length) runtime.clearBranches();
+      const frame = primaryRun.timeline.frames[intervention.frameIndex];
+      if (!frame) throw new Error("Invalid intervention frame");
+      const priorFrames = primaryRun.timeline.frames.slice(intervention.frameIndex).map((f) => ({
+        t: f.t,
+        state: { ...f.state },
+      }));
+      reshapeGeneration += 1;
+      reshapeInfo = {
+        frameIndex: intervention.frameIndex,
+        field: intervention.field,
+        priorFrames,
+        generation: reshapeGeneration,
+      };
+      primaryRun.reshapeAt(intervention.frameIndex, {
+        ...frame.state,
+        [intervention.field]: intervention.value,
+      });
+      notify({
+        type: "reshape",
+        frameIndex: intervention.frameIndex,
+        field: intervention.field,
+        runId: primaryRun.id,
+      });
+      notify({ type: "run-updated", runId: primaryRun.id });
+      pushView();
+    },
+
+    get reshape() {
+      return reshapeInfo;
     },
 
     snapshot(includeFrames = false) {

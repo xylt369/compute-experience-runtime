@@ -141,6 +141,29 @@ Public API (stable surface):
 - **Events:** `subscribe(listener)` — `frame`, `rebuild`, `parameters`, `run-created`, `run-forked`, `run-updated`, `run-seek`, `run-state-changed`
 - **Rendering:** `mount({ viewport, overlay? })`, `unmount()`, `resize()`
 
+## Computational inspector (experimental)
+
+Lorenz is the first model with an optional authored `explain()` hook. The playground exposes **Inspect → Trace → Intervene → Replay**:
+
+```text
+select value → see authored computation → click ancestor → go deeper → edit → replay → future reshapes
+```
+
+This is **author-provided execution structure**, not automatic causal inference.
+
+```typescript
+const trace = runtime.trace(420, "z");
+runtime.inspect(420, "z");
+runtime.intervene({ frameIndex: 419, field: "x", value: 8.5 });
+// primary run reshapes in-place; fork/compare is internal machinery, not the default UX
+```
+
+Core additions:
+
+- `explain(context, field)` on `ModelDefinition` (optional)
+- `runtime.trace()`, `runtime.inspect()`, `runtime.intervene()`
+- `ComputationalRun.reshapeAt()` for in-place replay
+
 ## Counterfactual computation
 
 The playground opens on **Lorenz attractor** as a counterfactual instrument:
@@ -304,6 +327,7 @@ Schema: [`packages/core/src/protocol/manifest-schema.json`](packages/core/src/pr
 - **Runtime v0.2 Computational Runs:** Run, fork, compare, synced playback
 - **Counterfactual Lorenz showcase:** fork, intervene, divergence, inspect, re-fork
 - **SIR counterfactual showcase:** intervention timing fork/compare on a decision system
+- **Computational inspector (Lorenz):** authored trace, recursive inspection, in-place replay
 
 ## Deliberate non-goals
 

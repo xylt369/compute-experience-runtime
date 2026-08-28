@@ -1,3 +1,5 @@
+import type { ComputationTrace, ExplainStepContext } from "../trace";
+
 export type ParameterType = "number" | "integer" | "boolean" | "enum";
 
 export interface ModelParameter {
@@ -65,6 +67,7 @@ export interface ModelDefinition {
     t?: number,
   ): Record<string, number>;
   derive?(state: Record<string, number>, parameters: Record<string, unknown>): Record<string, number>;
+  explain?(context: ExplainStepContext, field: string): ComputationTrace | null;
   time?: ModelTime;
 }
 

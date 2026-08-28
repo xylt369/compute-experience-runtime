@@ -27,6 +27,24 @@ export { Timeline } from "./timeline";
 export { Player, ModelPlayer } from "./player";
 export type { PlayerClock } from "./player";
 export { continueSimulate, simulate } from "./simulate";
+export { explainField, buildExplainContext } from "./inspect";
+export {
+  findTraceTerm,
+  flattenInspectableTerms,
+  referenceTarget,
+  traceTermPath,
+} from "./trace";
+export type {
+  ComputationTrace,
+  ExplainStepContext,
+  InspectionState,
+  InspectionTarget,
+  ReshapeInfo,
+  StateIntervention,
+  TraceReference,
+  TraceRefKind,
+  TraceTerm,
+} from "./trace";
 export {
   SNAPSHOT_STORAGE_KEY,
   deserializeSnapshot,

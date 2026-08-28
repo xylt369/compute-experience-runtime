@@ -128,6 +128,22 @@ mountExperienceUI({
 - **事件订阅 (Events):** `subscribe(listener)` — 支持 `frame`, `rebuild`, `parameters`, `run-created`, `run-forked`, `run-updated`, `run-seek`, `run-state-changed`
 - **渲染挂载 (Rendering):** `mount({ viewport, overlay? })`, `unmount()`, `resize()`
 
+## 计算检查器（实验性）(Computational inspector)
+
+Lorenz 是首个实现可选 `explain()` 钩子的模型。Playground 提供 **检查 → 追溯 → 干预 → 重放** 流程：
+
+```text
+选择数值 → 查看作者编写的计算结构 → 点击祖先项 → 深入 → 编辑 → 重放 → 未来轨迹重塑
+```
+
+这是**作者显式提供的执行结构**，不是自动因果推断。
+
+```typescript
+runtime.trace(420, "z");
+runtime.inspect(420, "z");
+runtime.intervene({ frameIndex: 419, field: "x", value: 8.5 });
+```
+
 ## 洛伦兹吸引子分叉演示 (Lorenz fork showcase)
 
 在 Playground 中打开 **Lorenz attractor（洛伦兹吸引子）**：
@@ -245,6 +261,7 @@ python bridge/author.py examples/rossler_model.py \
 - **第三方自定义模型 (Third-party custom-model):** 纯模型免 UI 开发验证
 - **计算运行实例 v0.2 (Computational Runs):** Run、分叉 (fork)、对比 (compare)、同步回放、Lorenz 分叉发散演示
 - **SIR 反事实演示 (SIR counterfactual):** 干预时机分叉/对比，验证非混沌决策系统
+- **计算检查器 (Computational inspector):** Lorenz 追溯、递归检查、原地重放
 
 ## 明确的非目标 (Deliberate non-goals)
 

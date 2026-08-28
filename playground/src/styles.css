@@ -463,6 +463,142 @@ button, input, select { font: inherit; }
   backdrop-filter: blur(10px);
 }
 
+/* ── Computational inspector ── */
+.state-fields {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-right: 8px;
+}
+
+.state-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(12, 14, 18, 0.72);
+  color: var(--text);
+  cursor: pointer;
+  font: 10px var(--font-mono);
+}
+
+.state-field.is-active {
+  border-color: rgba(210, 156, 92, 0.65);
+  box-shadow: 0 0 0 1px rgba(210, 156, 92, 0.15);
+}
+
+.state-field-key {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.trace-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trace-formula {
+  font: 12px var(--font-mono);
+  color: var(--soft);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.trace-focus {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.trace-focus-field {
+  font: 11px var(--font-mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.trace-focus-value {
+  font: 18px var(--font-mono);
+  color: var(--text);
+}
+
+.trace-terms,
+.trace-refs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.trace-term,
+.trace-ref {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  cursor: pointer;
+  font: 11px var(--font-mono);
+  text-align: left;
+}
+
+.trace-term.is-active,
+.trace-ref.is-nav:hover {
+  border-color: rgba(210, 156, 92, 0.55);
+}
+
+.trace-ref.is-nav { cursor: pointer; }
+.trace-ref:not(.is-nav) { cursor: default; opacity: 0.7; }
+
+.trace-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font: 10px var(--font-mono);
+  color: var(--muted);
+}
+
+.trace-crumb-sep { opacity: 0.45; }
+
+.intervention-block {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trace-edit {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  font: 12px var(--font-mono);
+}
+
+.inspector-empty {
+  padding: 16px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
 /* ── Main stage ── */
 .main { display: flex; flex-direction: column; min-width: 0; }
 

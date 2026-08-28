@@ -33,6 +33,13 @@ export interface RendererView<Frame = ModelFrame, Manifest = ModelManifest> {
   comparisonRuns?: RunRenderView<Frame>[];
   comparison?: RunComparison | null;
   syncTime?: number;
+  /** In-place reshape metadata for propagation visualization. */
+  reshape?: {
+    frameIndex: number;
+    field: string;
+    priorFrames: readonly Frame[];
+    generation: number;
+  };
 }
 
 export interface RuntimeRenderer<Frame = ModelFrame, Manifest = ModelManifest> {

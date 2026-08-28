@@ -1,6 +1,7 @@
 import type { ComputeRuntime } from "@compute-experience/core";
 import { bindModelChrome, type ModelChromeElements } from "./chrome";
 import { bindCounterfactualUI, type CounterfactualElements, type CounterfactualHandle, type InterventionConfig } from "./counterfactual";
+import { bindInspectorUI, type InspectorElements, type InspectorHandle } from "./inspector";
 import { bindMetricsPanel } from "./metrics";
 import { bindParameterPanel } from "./params";
 import { bindTransportBar, type TransportBarElements } from "./transport";
@@ -9,6 +10,7 @@ export interface ExperienceElements extends ModelChromeElements {
   params?: HTMLElement;
   metrics?: HTMLElement;
   counterfactual?: CounterfactualElements;
+  inspector?: InspectorElements;
   viewport: HTMLElement;
   overlay?: HTMLElement;
   play?: HTMLButtonElement;
@@ -21,6 +23,8 @@ export interface MountExperienceOptions {
   elements: ExperienceElements;
   /** When true, hide generic metrics and use counterfactual panel instead. */
   counterfactualMode?: boolean;
+  /** When true, use computational inspector (trace / intervene / replay). */
+  inspectorMode?: boolean;
   /** @deprecated Use intervention */
   perturbField?: string;
   intervention?: InterventionConfig;
@@ -31,17 +35,22 @@ export interface ExperienceHandle {
   sync(): void;
   dispose(): void;
   counterfactual?: CounterfactualHandle;
+  inspector?: InspectorHandle;
 }
 
 export function mountExperienceUI(options: MountExperienceOptions): ExperienceHandle {
   const { runtime, elements } = options;
   const disposers: Array<() => void> = [];
   let counterfactual: CounterfactualHandle | undefined;
+  let inspector: InspectorHandle | undefined;
 
   if (elements.params) {
     disposers.push(bindParameterPanel({ root: elements.params, runtime }).dispose);
   }
-  if (options.counterfactualMode && elements.counterfactual) {
+  if (options.inspectorMode && elements.inspector) {
+    inspector = bindInspectorUI({ runtime, elements: elements.inspector });
+    disposers.push(inspector.dispose);
+  } else if (options.counterfactualMode && elements.counterfactual) {
     counterfactual = bindCounterfactualUI({
       runtime,
       elements: elements.counterfactual,
@@ -77,11 +86,13 @@ export function mountExperienceUI(options: MountExperienceOptions): ExperienceHa
       chrome.sync();
       transport?.sync();
       counterfactual?.sync();
+      inspector?.sync();
     },
     dispose() {
       for (const dispose of disposers) dispose();
       runtime.unmount();
     },
     counterfactual,
+    inspector,
   };
 }

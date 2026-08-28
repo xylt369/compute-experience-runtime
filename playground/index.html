@@ -10,7 +10,7 @@
     <header class="top">
       <div class="brand-block">
         <div class="brand">Compute Experience</div>
-        <div class="brand-sub">Counterfactual Runtime</div>
+        <div class="brand-sub">Computational Inspector</div>
       </div>
       <div class="actions">
         <div class="action-group action-primary">
@@ -39,17 +39,19 @@
         </div>
         <div id="params"></div>
         <div class="cf-panel" id="counterfactualPanel"></div>
+        <div class="cf-panel" id="inspectorPanel"></div>
         <div class="metrics" id="metrics"></div>
       </aside>
       <main class="main">
         <div class="subbar">
           <span class="subbar-id" id="modelId">—</span>
-          <span class="subbar-flow" id="runtimeLabel">run · observe · fork · compare</span>
+          <span class="subbar-flow" id="runtimeLabel">run · inspect · trace · replay</span>
         </div>
         <div class="stage">
           <div class="stage-vignette"></div>
           <div class="grid"></div>
           <div class="hud">
+            <div class="state-fields" id="stateFields"></div>
             <div class="pill pill-muted" id="stateCount">0 states</div>
             <div class="pill pill-muted" id="rendererPill">renderer —</div>
             <button class="pill pill-divergence" id="divergence" type="button" hidden></button>
@@ -67,8 +69,8 @@
         </div>
         <footer class="footer">
           <div class="footer-copy">
-            <div class="footer-kicker">Same past · different future</div>
-            <p>Play, pause, seek, fork, intervene, and inspect where two computational histories diverge.</p>
+            <div class="footer-kicker">Inspect · trace · intervene · replay</div>
+            <p>Enter the computation: select a value, trace its ancestors, intervene, and watch the future reshape.</p>
           </div>
           <div class="footer-code">model → run → fork → experience</div>
         </footer>

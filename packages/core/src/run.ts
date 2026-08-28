@@ -196,6 +196,47 @@ export class ComputationalRun {
     this.rebuildFromFork();
   }
 
+  /**
+   * In-place intervention: keep history through `index`, patch state, recompute the future.
+   * Root runs only — used for inspect → intervene → replay without a visible branch.
+   */
+  reshapeAt(index: number, state: Record<string, number>): void {
+    if (this.isBranch) {
+      throw new Error("reshapeAt is only valid on the primary run");
+    }
+    if (!this.timeline.length) this.rebuild();
+    const frames = this.timeline.frames;
+    const clamped = Math.max(0, Math.min(index | 0, frames.length - 1));
+    const frame = frames[clamped];
+    if (!frame) throw new Error("Invalid reshape index");
+
+    const totalSteps = this.model.time?.steps ?? 900;
+    const dt = this.model.time?.dt ?? 0.01;
+    const remaining = Math.max(0, totalSteps - clamped - 1);
+    const head = [
+      ...frames.slice(0, clamped),
+      {
+        t: frame.t,
+        state: { ...state },
+        derived: this.model.derive
+          ? { ...this.model.derive(state, this._parameters) }
+          : frame.derived,
+      },
+    ];
+    const tail = continueSimulate(this.model, this._parameters, {
+      fromState: state,
+      fromTime: frame.t,
+      steps: remaining,
+      dt,
+    });
+    const nextFrames = [...head, ...tail];
+    const keepCursor = Math.min(this.timeline.cursor, nextFrames.length - 1);
+    this.player.setPlaybackRate(this.model.time?.playbackRate ?? 1);
+    this.player.load(nextFrames);
+    this.emit("rebuild");
+    this.player.seekIndex(Math.max(clamped, keepCursor));
+  }
+
   rebuild(options?: { cursor?: number; frames?: StateFrame[] }): void {
     if (options?.frames?.length) {
       this.player.setPlaybackRate(this.model.time?.playbackRate ?? 1);

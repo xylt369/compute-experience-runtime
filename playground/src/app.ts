@@ -18,12 +18,9 @@ const SIR_ID = "sir-epidemic";
 const DEFAULT_LORENZ_EPSILON = 1e-8;
 const SIR_FORK_INTERVENTION_DAY = 10;
 
+const INSPECTOR_MODELS = new Set([LORENZ_ID]);
+
 const COUNTERFACTUAL_CONFIG: Record<string, InterventionConfig> = {
-  [LORENZ_ID]: {
-    mode: "state",
-    perturbField: "x",
-    defaultEpsilon: DEFAULT_LORENZ_EPSILON,
-  },
   [SIR_ID]: {
     mode: "parameter",
     parameterId: "interventionStartDay",
@@ -53,6 +50,8 @@ const els = {
   modelId: document.querySelector<HTMLElement>("#modelId")!,
   params: document.querySelector<HTMLElement>("#params")!,
   counterfactualPanel: document.querySelector<HTMLElement>("#counterfactualPanel")!,
+  inspectorPanel: document.querySelector<HTMLElement>("#inspectorPanel")!,
+  stateFields: document.querySelector<HTMLElement>("#stateFields")!,
   metrics: document.querySelector<HTMLElement>("#metrics")!,
   stateCount: document.querySelector<HTMLElement>("#stateCount")!,
   rendererPill: document.querySelector<HTMLElement>("#rendererPill")!,
@@ -68,6 +67,10 @@ const els = {
 let currentId = LORENZ_ID;
 let runtime: ComputeRuntime | null = null;
 let experience: ExperienceHandle | null = null;
+
+function isInspectorModel(modelId: string): boolean {
+  return INSPECTOR_MODELS.has(modelId);
+}
 
 function isCounterfactualModel(modelId: string): boolean {
   return modelId in COUNTERFACTUAL_CONFIG;
@@ -110,13 +113,20 @@ function syncBranchActions() {
 }
 
 function syncSidebarMode(modelId: string) {
+  const inspector = isInspectorModel(modelId);
   const counterfactual = isCounterfactualModel(modelId);
-  els.sidebarEyebrow.textContent = counterfactual ? "Counterfactual run" : "Model manifest";
-  els.params.hidden = counterfactual;
+  els.sidebarEyebrow.textContent = inspector
+    ? "Computational inspector"
+    : counterfactual
+      ? "Counterfactual run"
+      : "Model manifest";
+  els.params.hidden = inspector || counterfactual;
   els.counterfactualPanel.hidden = !counterfactual;
-  els.metrics.hidden = counterfactual;
+  els.inspectorPanel.hidden = !inspector;
+  els.metrics.hidden = inspector || counterfactual;
   els.fork.hidden = !counterfactual;
   els.clearBranch.hidden = !counterfactual;
+  els.stateFields.hidden = !inspector;
 }
 
 function attachRuntime(modelId: string, options?: { params?: Record<string, number>; snapshot?: ExperienceSnapshot }) {
@@ -134,11 +144,13 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     syncPlayback: true,
   });
 
+  const inspector = isInspectorModel(modelId);
   const counterfactual = isCounterfactualModel(modelId);
   const intervention = counterfactualConfig(modelId);
 
   experience = mountExperienceUI({
     runtime,
+    inspectorMode: inspector,
     counterfactualMode: counterfactual,
     intervention,
     showOutcomes: intervention?.mode === "parameter",
@@ -148,6 +160,12 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
       modelId: els.modelId,
       params: els.params,
       metrics: els.metrics,
+      inspector: inspector
+        ? {
+            panel: els.inspectorPanel,
+            stateFields: els.stateFields,
+          }
+        : undefined,
       counterfactual: counterfactual
         ? {
             panel: els.counterfactualPanel,
