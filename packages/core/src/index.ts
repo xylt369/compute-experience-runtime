@@ -62,14 +62,26 @@ export {
 
 export {
   EMPTY_EXPERIENCE_CAPABILITIES,
+  PROFILE_PRESETS,
+  composeExperience,
   experienceMatrix,
+  inspectableTargets,
+  intervenableTargets,
   resolveExperience,
+  targetIds,
 } from "./experience";
-export type { ExperienceContract, InteractionVerb } from "./experience";
+export type {
+  ExperienceComposition,
+  ExperienceContract,
+  InteractionPrimitives,
+  InteractionVerb,
+} from "./experience";
 
 export type {
   ExperienceCapabilities,
   ExperienceProfile,
+  ExperienceTarget,
+  ExperienceTargetKind,
   ModelExperience,
   ExperienceSnapshot,
   ModelCapabilities,

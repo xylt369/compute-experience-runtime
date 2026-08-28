@@ -308,8 +308,14 @@ export const lorenz: ModelDefinition = defineModel({
     experience: {
       profile: "microscope",
       label: "Computational Microscope",
-      targets: ["x", "y", "z"],
-      roles: { x: "state", y: "state", z: "state" },
+      targets: [
+        { id: "x", kind: "state", label: "x", inspectable: true, traceable: true, intervenable: true },
+        { id: "y", kind: "state", label: "y", inspectable: true, traceable: true, intervenable: true },
+        { id: "z", kind: "state", label: "z", inspectable: true, traceable: true, intervenable: true },
+        { id: "sigma", kind: "parameter", label: "σ", inspectable: false },
+        { id: "rho", kind: "parameter", label: "ρ", inspectable: false },
+        { id: "beta", kind: "parameter", label: "β", inspectable: false },
+      ],
       options: { autoPlay: true },
     },
   },

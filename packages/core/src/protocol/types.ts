@@ -30,6 +30,18 @@ export interface ModelCapabilities {
 
 export type ExperienceProfile = "microscope" | "counterfactual" | "instrument" | "manifest";
 
+export type ExperienceTargetKind = "state" | "parameter" | "derived" | "event";
+
+export interface ExperienceTarget {
+  id: string;
+  kind: ExperienceTargetKind;
+  label?: string;
+  inspectable?: boolean;
+  traceable?: boolean;
+  intervenable?: boolean;
+  visualRole?: string;
+}
+
 export interface ExperienceCapabilities {
   inspect: boolean;
   trace: boolean;
@@ -39,12 +51,14 @@ export interface ExperienceCapabilities {
   compare: boolean;
 }
 
-/** Declarative experience semantics (not UI layout). */
+/** Declarative experience semantics (not UI layout). Profile is an optional preset only. */
 export interface ModelExperience {
+  /** @deprecated Capability preset — prefer explicit capabilities + targets. */
   profile?: ExperienceProfile;
   label?: string;
   capabilities?: Partial<ExperienceCapabilities>;
-  targets?: string[];
+  targets?: Array<string | ExperienceTarget>;
+  /** @deprecated Prefer structured target.visualRole */
   roles?: Record<string, string>;
   options?: {
     autoPlay?: boolean;

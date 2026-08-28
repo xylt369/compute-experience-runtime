@@ -85,13 +85,18 @@ export const sir: ModelDefinition = defineModel({
     experience: {
       profile: "counterfactual",
       label: "Epidemic History",
-      targets: ["susceptible", "infected", "recovered"],
-      roles: {
-        susceptible: "state",
-        infected: "state",
-        recovered: "state",
-        interventionStartDay: "parameter",
-      },
+      targets: [
+        { id: "susceptible", kind: "state", label: "S", inspectable: true },
+        { id: "infected", kind: "state", label: "I", inspectable: true },
+        { id: "recovered", kind: "state", label: "R", inspectable: true },
+        {
+          id: "interventionStartDay",
+          kind: "parameter",
+          label: "Intervention",
+          inspectable: true,
+          visualRole: "intervention",
+        },
+      ],
       options: {
         autoPlay: false,
         showOutcomes: true,

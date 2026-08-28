@@ -1,4 +1,5 @@
-import type { ExperienceContract } from "@compute-experience/core";
+import type { ExperienceComposition, ExperienceContract } from "@compute-experience/core";
+import { composeExperience } from "@compute-experience/core";
 
 export interface ExperienceShellElements {
   brandSub?: HTMLElement;
@@ -9,37 +10,41 @@ export interface ExperienceShellElements {
   clearBranch?: HTMLElement;
 }
 
-/** Apply document-level shell from experience contract (not DOM structure). */
+/** Apply document-level shell from semantic composition (not profile names). */
 export function applyExperienceShell(
   contract: ExperienceContract,
   elements: ExperienceShellElements = {},
 ): void {
+  const composition = composeExperience(contract);
   const body = document.body;
-  const isWorld = contract.profile !== "manifest";
 
-  body.classList.toggle("mode-world", isWorld);
-  body.classList.toggle("mode-microscope", contract.profile === "microscope");
-  body.dataset.experienceProfile = contract.profile;
+  body.classList.toggle("mode-world", composition.worldShell);
+  body.classList.toggle("mode-trace-lens", composition.traceLens);
   body.dataset.experienceWorld = contract.world;
+  if (contract.profile) body.dataset.experiencePreset = contract.profile;
+  else delete body.dataset.experiencePreset;
 
   if (elements.brandSub) {
-    elements.brandSub.textContent = contract.label;
+    elements.brandSub.textContent =
+      contract.options?.intervention && composition.branchPanel
+        ? "Pause · Fork · change the future"
+        : composition.traceLens
+          ? "Click the path · ask why"
+          : contract.label;
   }
 
-  document.title =
-    contract.profile === "microscope"
-      ? `${contract.label}`
-      : `Compute Experience — ${contract.label}`;
+  document.title = composition.traceLens
+    ? contract.label
+    : `Compute Experience — ${contract.label}`;
 
-  const showMicroscopeChrome = contract.profile === "microscope";
   if (elements.worldParameters) {
-    elements.worldParameters.hidden = !(showMicroscopeChrome || contract.profile === "instrument");
+    elements.worldParameters.hidden = !composition.showParameters;
   }
   if (elements.worldStateReadout) {
-    elements.worldStateReadout.hidden = !isWorld;
+    elements.worldStateReadout.hidden = !composition.worldShell;
   }
   if (elements.worldPanel) {
-    elements.worldPanel.hidden = contract.profile !== "counterfactual";
+    elements.worldPanel.hidden = !composition.branchPanel;
   }
 
   const showFork = contract.capabilities.fork;
@@ -49,7 +54,13 @@ export function applyExperienceShell(
 
 export function clearExperienceShell(): void {
   const body = document.body;
-  body.classList.remove("mode-world", "mode-microscope");
-  delete body.dataset.experienceProfile;
+  body.classList.remove("mode-world", "mode-trace-lens", "mode-microscope");
+  delete body.dataset.experiencePreset;
   delete body.dataset.experienceWorld;
+  delete body.dataset.experienceProfile;
+}
+
+/** @deprecated Use applyExperienceShell with composeExperience semantics. */
+export function compositionFromContract(contract: ExperienceContract): ExperienceComposition {
+  return composeExperience(contract);
 }

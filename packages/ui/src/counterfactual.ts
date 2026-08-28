@@ -197,7 +197,7 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
             <span class="branch-dot"></span>
             <span>ORIGINAL</span>
           </div>
-          <p class="branch-hint">Pause near day 20, then Fork to explore an alternative intervention timing from the same past.</p>
+          <p class="branch-hint">Pause, then Fork to explore a different future from the same past.</p>
         </div>`;
     }
     elements.panel.appendChild(tree);
@@ -277,32 +277,32 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
     }
 
     if (frame) {
-      const inspector = document.createElement("div");
-      inspector.className = "inspector";
-      const keys = runtime.manifest.state;
-      const deltas = comparison?.stateDifferences ?? [];
-      const deltaMap = new Map(deltas.map((d) => [d.key, d]));
+      if (branch) {
+        const inspector = document.createElement("div");
+        inspector.className = "inspector";
+        const keys = runtime.manifest.state;
+        const deltas = comparison?.stateDifferences ?? [];
+        const deltaMap = new Map(deltas.map((d) => [d.key, d]));
 
-      let table = `<table class="inspector-table"><thead><tr><th></th><th>Original</th>`;
-      if (branch) table += `<th class="col-counter">Counter</th><th class="col-delta">Δ</th>`;
-      table += `</tr></thead><tbody>`;
+        let table = `<table class="inspector-table"><thead><tr><th></th><th>Original</th>`;
+        table += `<th class="col-counter">Counter</th><th class="col-delta">Δ</th>`;
+        table += `</tr></thead><tbody>`;
 
-      for (const key of keys) {
-        const a = frame.state[key];
-        const b = branchFrame?.state[key];
-        const d = deltaMap.get(key);
-        table += `<tr><td>${key}</td>`;
-        table += `<td>${typeof a === "number" ? fmtState(a) : "—"}</td>`;
-        if (branch) {
+        for (const key of keys) {
+          const a = frame.state[key];
+          const b = branchFrame?.state[key];
+          const d = deltaMap.get(key);
+          table += `<tr><td>${key}</td>`;
+          table += `<td>${typeof a === "number" ? fmtState(a) : "—"}</td>`;
           table += `<td class="col-counter">${typeof b === "number" ? fmtState(b) : "—"}</td>`;
           table += `<td class="col-delta">${d ? fmtDelta(d.delta) : "—"}</td>`;
+          table += `</tr>`;
         }
-        table += `</tr>`;
-      }
-      table += `</tbody></table>`;
+        table += `</tbody></table>`;
 
-      inspector.innerHTML = `<div class="inspector-kicker">Inspect</div><div class="inspector-time">t = ${frame.t.toFixed(2)} ${unit}</div>${table}`;
-      elements.panel.appendChild(inspector);
+        inspector.innerHTML = `<div class="inspector-kicker">At this moment</div><div class="inspector-time">t = ${frame.t.toFixed(2)} ${unit}</div>${table}`;
+        elements.panel.appendChild(inspector);
+      }
     }
 
     if (showOutcomes && branch) {

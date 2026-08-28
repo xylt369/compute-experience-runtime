@@ -1150,6 +1150,20 @@ body.mode-world .layout {
   grid-template-columns: 1fr;
 }
 
+body.mode-world #drawerToggle,
+body.mode-world #reset,
+body.mode-world #save,
+body.mode-world #restore,
+body.mode-world #export,
+body.mode-world #import {
+  display: none;
+}
+
+body.mode-trace-lens .layout,
+body.mode-microscope .layout {
+  grid-template-columns: 1fr;
+}
+
 body.mode-world .sidebar,
 body.mode-world .drawer-backdrop,
 body.mode-world .subbar,
@@ -1177,30 +1191,48 @@ body.mode-world .top .actions {
   pointer-events: auto;
 }
 
-body.mode-world[data-experience-profile="microscope"] .brand-block,
-body.mode-world[data-experience-profile="microscope"] .action-primary,
-body.mode-world[data-experience-profile="microscope"] .action-sep,
-body.mode-world[data-experience-profile="microscope"] #drawerToggle,
-body.mode-world[data-experience-profile="microscope"] #reset,
-body.mode-world[data-experience-profile="microscope"] #save,
-body.mode-world[data-experience-profile="microscope"] #restore,
-body.mode-world[data-experience-profile="microscope"] #export,
-body.mode-world[data-experience-profile="microscope"] #import,
-body.mode-world[data-experience-profile="instrument"] #drawerToggle,
-body.mode-world[data-experience-profile="instrument"] #reset,
-body.mode-world[data-experience-profile="instrument"] #save,
-body.mode-world[data-experience-profile="instrument"] #restore,
-body.mode-world[data-experience-profile="instrument"] #export,
-body.mode-world[data-experience-profile="instrument"] #import {
+body.mode-world[data-experience-preset="microscope"] .brand-block,
+body.mode-trace-lens .brand-block,
+body.mode-microscope .brand-block,
+body.mode-world[data-experience-preset="microscope"] .action-primary,
+body.mode-trace-lens .action-primary,
+body.mode-microscope .action-primary,
+body.mode-world[data-experience-preset="microscope"] .action-sep,
+body.mode-trace-lens .action-sep,
+body.mode-microscope .action-sep,
+body.mode-world[data-experience-preset="microscope"] #drawerToggle,
+body.mode-trace-lens #drawerToggle,
+body.mode-microscope #drawerToggle,
+body.mode-world[data-experience-preset="microscope"] #reset,
+body.mode-trace-lens #reset,
+body.mode-microscope #reset,
+body.mode-world[data-experience-preset="microscope"] #save,
+body.mode-trace-lens #save,
+body.mode-microscope #save,
+body.mode-world[data-experience-preset="microscope"] #restore,
+body.mode-trace-lens #restore,
+body.mode-microscope #restore,
+body.mode-world[data-experience-preset="microscope"] #export,
+body.mode-trace-lens #export,
+body.mode-microscope #export,
+body.mode-world[data-experience-preset="microscope"] #import,
+body.mode-trace-lens #import,
+body.mode-microscope #import,
+body.mode-world[data-experience-preset="instrument"] #drawerToggle,
+body.mode-world[data-experience-preset="instrument"] #reset,
+body.mode-world[data-experience-preset="instrument"] #save,
+body.mode-world[data-experience-preset="instrument"] #restore,
+body.mode-world[data-experience-preset="instrument"] #export,
+body.mode-world[data-experience-preset="instrument"] #import {
   display: none;
 }
 
-body.mode-world[data-experience-profile="counterfactual"] #drawerToggle,
-body.mode-world[data-experience-profile="counterfactual"] #reset,
-body.mode-world[data-experience-profile="counterfactual"] #save,
-body.mode-world[data-experience-profile="counterfactual"] #restore,
-body.mode-world[data-experience-profile="counterfactual"] #export,
-body.mode-world[data-experience-profile="counterfactual"] #import {
+body.mode-world[data-experience-preset="counterfactual"] #drawerToggle,
+body.mode-world[data-experience-preset="counterfactual"] #reset,
+body.mode-world[data-experience-preset="counterfactual"] #save,
+body.mode-world[data-experience-preset="counterfactual"] #restore,
+body.mode-world[data-experience-preset="counterfactual"] #export,
+body.mode-world[data-experience-preset="counterfactual"] #import {
   display: none;
 }
 
@@ -1356,6 +1388,55 @@ body.mode-world .time {
   max-height: calc(100% - 120px);
   overflow: auto;
   pointer-events: auto;
+}
+
+body.mode-world[data-experience-preset="counterfactual"] .world-panel {
+  top: auto;
+  bottom: 78px;
+  left: 16px;
+  right: 16px;
+  width: auto;
+  max-height: min(34vh, 280px);
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  background: rgba(8, 11, 15, 0.82);
+  backdrop-filter: blur(16px);
+}
+
+.world-hint {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 8px 16px;
+  border: 1px solid rgba(210, 156, 92, 0.28);
+  border-radius: 999px;
+  background: rgba(8, 11, 15, 0.78);
+  backdrop-filter: blur(12px);
+  color: rgba(210, 156, 92, 0.92);
+  font: 11px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  pointer-events: none;
+  animation: world-hint-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes world-hint-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+body.mode-trace-lens .brand-block {
+  display: none !important;
+}
+
+.micro-hint {
+  margin: 0 0 10px;
+  font: 10px var(--font-mono);
+  color: rgba(210, 156, 92, 0.78);
+  line-height: 1.45;
 }
 
 .world-panel .cf-panel,

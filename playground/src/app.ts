@@ -1,4 +1,5 @@
 import {
+  composeExperience,
   createRuntime,
   defaultParameters,
   resolveExperience,
@@ -56,8 +57,27 @@ const els = {
   worldRecipe: document.querySelector<HTMLElement>("#worldRecipe")!,
   worldParameters: document.querySelector<HTMLElement>("#worldParameters")!,
   worldStateReadout: document.querySelector<HTMLElement>("#worldStateReadout")!,
+  worldHint: document.querySelector<HTMLElement>("#worldHint")!,
   worldRestore: document.querySelector<HTMLButtonElement>("#worldRestore")!,
 };
+
+function resetWorldShell() {
+  els.worldRecipe.replaceChildren();
+  els.worldRecipe.hidden = true;
+  els.worldPanel.replaceChildren();
+  els.worldPanel.hidden = true;
+  els.worldStateReadout.replaceChildren();
+  els.worldStateReadout.hidden = true;
+  els.worldHint.replaceChildren();
+  els.worldHint.hidden = true;
+  els.worldParameters.replaceChildren();
+  els.worldParameters.hidden = true;
+  els.worldRestore.hidden = true;
+  els.divergence.hidden = true;
+  els.divergence.replaceChildren();
+  els.counterfactualPanel.replaceChildren();
+  els.counterfactualPanel.hidden = true;
+}
 
 let currentId = Object.keys(models)[0]!;
 let runtime: ComputeRuntime | null = null;
@@ -98,13 +118,13 @@ function syncBranchActions() {
   els.fork.textContent = hasBranch ? "Re-fork" : "Fork";
 }
 
-function syncManifestChrome(modelId: string, exp: ExperienceContract) {
-  const manifestMode = exp.profile === "manifest";
-  els.sidebarEyebrow.textContent = manifestMode ? "Model manifest" : exp.label;
-  els.params.hidden = !manifestMode;
-  els.metrics.hidden = !manifestMode;
+function syncManifestChrome(exp: ExperienceContract) {
+  const composition = composeExperience(exp);
+  els.sidebarEyebrow.textContent = composition.manifestPanel ? "Model manifest" : exp.label;
+  els.params.hidden = !composition.manifestPanel;
+  els.metrics.hidden = !composition.manifestPanel;
   els.counterfactualPanel.hidden = true;
-  els.drawerToggle.hidden = !manifestMode;
+  els.drawerToggle.hidden = !composition.manifestPanel;
 }
 
 function attachRuntime(modelId: string, options?: { params?: Record<string, number>; snapshot?: ExperienceSnapshot }) {
@@ -112,6 +132,7 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
   if (!model) throw new Error(`Unknown model: ${modelId}`);
 
   experience?.dispose();
+  resetWorldShell();
   currentId = modelId;
   contract = resolveExperience(model);
 
@@ -123,7 +144,7 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     fork: els.fork,
     clearBranch: els.clearBranch,
   });
-  syncManifestChrome(modelId, contract);
+  syncManifestChrome(contract);
 
   runtime = createRuntime({
     model,
@@ -132,9 +153,8 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     syncPlayback: true,
   });
 
-  const isWorld = contract.profile !== "manifest";
-  const counterfactualPanel =
-    contract.profile === "counterfactual" ? els.worldPanel : els.counterfactualPanel;
+  const composition = composeExperience(contract);
+  const branchPanelHost = composition.branchPanel ? els.worldPanel : els.counterfactualPanel;
 
   experience = mountExperienceUI({
     runtime,
@@ -145,7 +165,7 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
       modelId: els.modelId,
       params: els.params,
       metrics: els.metrics,
-      world: isWorld
+      world: composition.worldShell
         ? {
             stage: els.worldStage,
             stateReadout: els.worldStateReadout,
@@ -153,19 +173,19 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
             recipe: els.worldRecipe,
             restore: els.worldRestore,
             panel: els.worldPanel,
+            hint: els.worldHint,
           }
         : undefined,
-      counterfactual:
-        contract.profile === "counterfactual"
-          ? {
-              panel: counterfactualPanel,
-              timeline: els.timelineShell.querySelector(".scrub-wrap")!,
-              scrub: els.scrub,
-              divergence: els.divergence,
-            }
-          : undefined,
-      stateCount: isWorld ? undefined : els.stateCount,
-      rendererPill: isWorld ? undefined : els.rendererPill,
+      counterfactual: composition.branchPanel
+        ? {
+            panel: branchPanelHost,
+            timeline: els.timelineShell.querySelector(".scrub-wrap")!,
+            scrub: els.scrub,
+            divergence: els.divergence,
+          }
+        : undefined,
+      stateCount: composition.worldShell ? undefined : els.stateCount,
+      rendererPill: composition.worldShell ? undefined : els.rendererPill,
       viewport: els.viewport,
       overlay: els.overlay,
       play: els.play,
@@ -187,8 +207,11 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     runtime.restore(options.snapshot);
     experience.sync();
     syncBranchActions();
-  } else if (contract.options?.autoPlay) {
+  } else if (contract.options?.autoPlay && !composition.traceLens) {
     runtime.play();
+  } else if (composition.traceLens) {
+    runtime.pause();
+    runtime.seekIndex(Math.floor(runtime.timeline.length * 0.35));
   }
 }
 

@@ -259,11 +259,12 @@ Snapshots are deterministic, JSON-compatible objects supporting multi-run trees:
 
 | Model | Playground experience |
 | --- | --- |
-| Lorenz attractor | **Computational Microscope** (`microscope`) |
-| SIR Counterfactual | **Epidemic History** (`counterfactual`) |
-| Simple pendulum | **Physical Pendulum** (`instrument`) |
-| Rössler attractor | **Dynamical Flow** (`instrument`) |
+| Lorenz attractor | **Computational Microscope** — trace lens (`inspect` + `trace`) |
+| SIR Counterfactual | **Epidemic History** — branch panel (`fork` + `compare` + intervention) |
+| Simple pendulum | **Physical Pendulum** — world readout |
+| Rössler attractor | **Dynamical Flow** — world readout + fork/compare in chrome |
 | Logistic growth (`custom-model`) | Manifest playground |
+| Semantic demo | Inspect-only world readout — **no profile preset** |
 
 ## Architecture
 
@@ -277,7 +278,10 @@ Model Protocol (manifest + initial/step/derive + optional explain)
 Computational Run(s)
        │
        ▼
-Experience Contract (capabilities + profile + targets)
+Experience Contract (world + targets + capabilities)
+       │
+       ▼
+Experience Composition (trace lens / branch panel / world readout / manifest)
        │
        ├──────────────────┐
        ▼                  ▼
@@ -292,12 +296,18 @@ Semantics              Expression
 Models define **computation**. Runs preserve **history**. Experiences define **how that history can be explored**. Renderers express each experience in the model's natural visual world.
 
 ```typescript
-import { resolveExperience } from "@compute-experience/core";
+import { resolveExperience, composeExperience } from "@compute-experience/core";
 
 const contract = resolveExperience(model);
-// contract.profile: "microscope" | "counterfactual" | "instrument" | "manifest"
+// contract.targets: ExperienceTarget[] — state / parameter / derived / event
 // contract.capabilities: { inspect, trace, intervene, replay, fork, compare }
+// contract.profile?: optional preset label (microscope | counterfactual | instrument | manifest)
+
+const composition = composeExperience(contract);
+// composition.traceLens | branchPanel | worldReadout | manifestPanel
 ```
+
+**Profiles are presets**, not architectural destinations. UI modules are derived from `capabilities` + `targets` via `composeExperience()`, then wired through shared **interaction primitives** (`inspect`, `trace`, `intervene`, `replay`, `fork`/`compare`, `hold`) in `@compute-experience/ui`.
 
 Shared interaction verbs (`watch`, `hold`, `ask`, `follow`, `touch`, `release`, `replay`) have consistent runtime semantics. Visual expression differs per model.
 
@@ -320,7 +330,8 @@ Schema: [`packages/core/src/protocol/manifest-schema.json`](packages/core/src/pr
 - **Computational Runs:** Run, fork, compare, synced playback
 - **Lorenz Computational Microscope:** world-first inspect → trace → touch → in-place replay
 - **SIR counterfactual showcase:** intervention timing fork/compare
-- **Authored traces:** `explain()`, `ComputationTrace`, recursive inspection
+- **Experience contract:** semantic targets, capabilities, `composeExperience()` composition
+- **Semantic extensibility demo:** `semantic-demo` model (no profile, inspect-only world readout)
 
 ## Deliberate non-goals
 

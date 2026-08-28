@@ -1,21 +1,36 @@
-export { formatParameterValue, parameterDigits } from "./format";
-export { bindParameterPanel } from "./params";
-export type { ParameterPanel, ParameterPanelOptions } from "./params";
-export { bindMetricsPanel } from "./metrics";
-export type { MetricsPanel, MetricsPanelOptions } from "./metrics";
-export { bindTransportBar } from "./transport";
-export type { TransportBar, TransportBarElements, TransportBarOptions } from "./transport";
-export { bindModelChrome } from "./chrome";
-export type { ModelChrome, ModelChromeElements, ModelChromeOptions } from "./chrome";
-export { bindCounterfactualUI } from "./counterfactual";
-export type { CounterfactualElements, CounterfactualHandle, CounterfactualOptions, InterventionConfig, ParameterInterventionConfig, StateInterventionConfig } from "./counterfactual";
-export { bindInspectorUI } from "./inspector";
-export type { InspectorElements, InspectorHandle, InspectorOptions } from "./inspector";
-export { bindMicroscopeUI } from "./microscope";
-export type { MicroscopeElements, MicroscopeHandle, MicroscopeOptions } from "./microscope";
-export { applyExperienceShell, clearExperienceShell } from "./shell";
-export type { ExperienceShellElements } from "./shell";
-export { bindInstrumentUI } from "./instrument";
-export type { InstrumentElements, InstrumentHandle } from "./instrument";
-export { mountExperienceUI } from "./experience";
-export type { ExperienceElements, ExperienceHandle, MountExperienceOptions, WorldElements } from "./experience";
+export { formatParameterValue, parameterDigits } from "./format";
+export { bindParameterPanel } from "./params";
+export type { ParameterPanel, ParameterPanelOptions } from "./params";
+export { bindMetricsPanel } from "./metrics";
+export type { MetricsPanel, MetricsPanelOptions } from "./metrics";
+export { bindTransportBar } from "./transport";
+export type { TransportBar, TransportBarElements, TransportBarOptions } from "./transport";
+export { bindModelChrome } from "./chrome";
+export type { ModelChrome, ModelChromeElements, ModelChromeOptions } from "./chrome";
+export { bindCounterfactualUI } from "./counterfactual";
+export type { CounterfactualElements, CounterfactualHandle, CounterfactualOptions, InterventionConfig, ParameterInterventionConfig, StateInterventionConfig } from "./counterfactual";
+export { bindInspectorUI } from "./inspector";
+export type { InspectorElements, InspectorHandle, InspectorOptions } from "./inspector";
+export { bindMicroscopeUI } from "./microscope";
+export type { MicroscopeElements, MicroscopeHandle, MicroscopeOptions } from "./microscope";
+export { applyExperienceShell, clearExperienceShell } from "./shell";
+export type { ExperienceShellElements } from "./shell";
+export { bindInstrumentUI } from "./instrument";
+export type { InstrumentElements, InstrumentHandle } from "./instrument";
+export {
+  composeInteractions,
+  bindHoldInteraction,
+  bindInspectInteraction,
+  bindTraceInteraction,
+  bindReplayInteraction,
+  bindParameterStrip,
+} from "./interactions";
+export type {
+  ComposedInteractionsHandle,
+  ComposeInteractionsOptions,
+  TraceInteractionHandle,
+  InteractionPrimitive,
+} from "./interactions";
+export { mountExperienceUI } from "./experience";
+export type { ExperienceElements, ExperienceHandle, MountExperienceOptions, WorldElements } from "./experience";
+export { composeExperience } from "@compute-experience/core";

@@ -9,7 +9,7 @@ const validate = ajv.compile(schema);
 
 describe("JS model manifests", () => {
   it("validates all catalog models against the authoring schema", () => {
-    expect(modelList.length).toBeGreaterThanOrEqual(5);
+    expect(modelList.length).toBeGreaterThanOrEqual(6);
     for (const model of modelList) {
       const ok = validate(model.manifest);
       expect(ok, JSON.stringify(validate.errors)).toBe(true);
@@ -26,6 +26,7 @@ describe("JS model manifests", () => {
         "custom-logistic-growth",
         "lorenz-attractor",
         "rossler-attractor",
+        "semantic-demo",
         "simple-pendulum",
         "sir-epidemic",
       ].sort(),

@@ -17,7 +17,11 @@ export const rossler: ModelDefinition = defineModel({
     experience: {
       profile: "instrument",
       label: "Dynamical Flow",
-      targets: ["x", "y", "z"],
+      targets: [
+        { id: "x", kind: "state", label: "x", inspectable: true },
+        { id: "y", kind: "state", label: "y", inspectable: true },
+        { id: "z", kind: "state", label: "z", inspectable: true },
+      ],
       capabilities: {
         intervene: false,
         replay: false,

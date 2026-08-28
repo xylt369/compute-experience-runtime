@@ -18,7 +18,12 @@ export const pendulum: ModelDefinition = defineModel({
     experience: {
       profile: "instrument",
       label: "Physical Pendulum",
-      targets: ["angle", "angularVelocity"],
+      targets: [
+        { id: "angle", kind: "state", label: "angle", inspectable: true, intervenable: true },
+        { id: "angularVelocity", kind: "state", label: "ω", inspectable: true, intervenable: true },
+        { id: "gravity", kind: "parameter", label: "g" },
+        { id: "length", kind: "parameter", label: "L" },
+      ],
       options: { autoPlay: true },
     },
   },
