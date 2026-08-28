@@ -121,7 +121,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
   private mountHud() {
     if (!this.overlay) return;
     this.overlay.innerHTML = `
-      <div class="hint">drag · zoom · fork · play both futures</div>
+      <div class="hint">Drag to orbit · scroll to zoom</div>
       <div class="legend" data-role="legend">
         <span><i class="swatch-inline primary"></i>ORIGINAL</span>
       </div>

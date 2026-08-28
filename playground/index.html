@@ -8,47 +8,58 @@
 <body>
   <div class="app">
     <header class="top">
-      <div class="brand">COMPUTE EXPERIENCE / RUNTIME</div>
+      <div class="brand-block">
+        <div class="brand">Compute Experience</div>
+        <div class="brand-sub">Counterfactual Runtime</div>
+      </div>
       <div class="actions">
-        <button class="control drawer-toggle" id="drawerToggle" type="button">Params</button>
-        <select class="control" id="modelSelect"></select>
-        <button class="control" id="fork" type="button">Fork</button>
-        <button class="control" id="clearBranch" type="button">Clear branch</button>
-        <button class="control" id="reset" type="button">Reset</button>
-        <button class="control" id="save" type="button">Save</button>
-        <button class="control" id="restore" type="button">Restore</button>
-        <button class="control" id="export" type="button">Export</button>
-        <button class="control" id="import" type="button">Import</button>
+        <div class="action-group action-primary">
+          <button class="control control-accent" id="fork" type="button">Fork</button>
+          <button class="control control-ghost" id="clearBranch" type="button">Clear branch</button>
+        </div>
+        <span class="action-sep" aria-hidden="true"></span>
+        <select class="control control-select" id="modelSelect"></select>
+        <button class="control drawer-toggle" id="drawerToggle" type="button">Inspect</button>
+        <span class="action-sep" aria-hidden="true"></span>
+        <button class="control control-ghost" id="reset" type="button">Reset</button>
+        <button class="control control-ghost" id="save" type="button">Save</button>
+        <button class="control control-ghost" id="restore" type="button">Restore</button>
+        <button class="control control-ghost" id="export" type="button">Export</button>
+        <button class="control control-ghost" id="import" type="button">Import</button>
         <input id="importFile" type="file" accept="application/json" hidden />
       </div>
     </header>
     <div class="drawer-backdrop" id="drawerBackdrop"></div>
     <div class="layout">
       <aside class="sidebar" id="sidebar">
-        <div class="eyebrow" id="sidebarEyebrow">Model manifest</div>
-        <div class="title" id="modelName">—</div>
-        <p class="desc" id="modelDesc"></p>
+        <div class="sidebar-head">
+          <div class="eyebrow" id="sidebarEyebrow">Counterfactual run</div>
+          <div class="title" id="modelName">—</div>
+          <p class="desc" id="modelDesc"></p>
+        </div>
         <div id="params"></div>
-        <div id="counterfactualPanel"></div>
+        <div class="cf-panel" id="counterfactualPanel"></div>
         <div class="metrics" id="metrics"></div>
       </aside>
       <main class="main">
         <div class="subbar">
-          <span id="modelId">—</span>
-          <span id="runtimeLabel">run → observe → fork → compare</span>
+          <span class="subbar-id" id="modelId">—</span>
+          <span class="subbar-flow" id="runtimeLabel">run · observe · fork · compare</span>
         </div>
         <div class="stage">
+          <div class="stage-vignette"></div>
           <div class="grid"></div>
           <div class="hud">
-            <div class="pill" id="stateCount">0 states</div>
-            <div class="pill" id="rendererPill">renderer: —</div>
-            <button class="pill divergence-event" id="divergence" type="button" hidden></button>
+            <div class="pill pill-muted" id="stateCount">0 states</div>
+            <div class="pill pill-muted" id="rendererPill">renderer —</div>
+            <button class="pill pill-divergence" id="divergence" type="button" hidden></button>
           </div>
           <div class="viewport" id="viewport"></div>
           <div class="renderer-overlay" id="rendererOverlay"></div>
           <div class="timeline-shell" id="timelineShell">
-            <button id="play" type="button">▶</button>
+            <button class="play-btn" id="play" type="button" aria-label="Play">▶</button>
             <div class="scrub-wrap">
+              <div class="scrub-track"></div>
               <input class="scrub" id="scrub" type="range" min="0" max="0" step="1" value="0">
             </div>
             <span class="time" id="time">0.00</span>
@@ -56,8 +67,8 @@
         </div>
         <footer class="footer">
           <div class="footer-copy">
-            <div class="footer-kicker">Counterfactual computation</div>
-            <p>Same past, different intervention, different future. Play · pause · seek · fork · inspect divergence.</p>
+            <div class="footer-kicker">Same past · different future</div>
+            <p>Play, pause, seek, fork, intervene, and inspect where two computational histories diverge.</p>
           </div>
           <div class="footer-code">model → run → fork → experience</div>
         </footer>

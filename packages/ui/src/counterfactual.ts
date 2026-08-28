@@ -118,12 +118,32 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
 
     const tree = document.createElement("div");
     tree.className = "branch-tree";
-    tree.innerHTML = branch
-      ? `<div class="branch-line original">ORIGINAL</div>
-         <div class="branch-connector">└── FORK @ ${branch.forkPoint?.time.toFixed(2) ?? "—"}${unit}</div>
-         <div class="branch-line counterfactual">COUNTERFACTUAL</div>`
-      : `<div class="branch-line original">ORIGINAL</div>
-         <div class="branch-hint">Pause · seek · Fork to explore an alternative future</div>`;
+    if (branch) {
+      tree.innerHTML = `
+        <div class="branch-diagram">
+          <div class="branch-node original">
+            <span class="branch-dot"></span>
+            <span>ORIGINAL</span>
+          </div>
+          <div class="branch-rail">
+            <span class="branch-rail-line"></span>
+            <span class="branch-rail-label">Fork @ ${branch.forkPoint?.time.toFixed(2) ?? "—"}${unit}</span>
+          </div>
+          <div class="branch-node counterfactual">
+            <span class="branch-dot"></span>
+            <span>COUNTERFACTUAL</span>
+          </div>
+        </div>`;
+    } else {
+      tree.innerHTML = `
+        <div class="branch-diagram">
+          <div class="branch-node original">
+            <span class="branch-dot"></span>
+            <span>ORIGINAL</span>
+          </div>
+          <p class="branch-hint">Pause, seek to a moment, then Fork to branch an alternative future from the same past.</p>
+        </div>`;
+    }
     elements.panel.appendChild(tree);
 
     if (branch && branch.forkPoint) {
@@ -135,18 +155,21 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
       intervention.className = "intervention";
       intervention.innerHTML = `
         <div class="intervention-kicker">Intervene</div>
-        <div class="intervention-row">
-          <span class="intervention-label">ORIGINAL</span>
-          <code>${perturbField} = ${fmtState(originalState[perturbField] ?? 0)}</code>
+        <div class="intervention-cards">
+          <div class="state-card original">
+            <span class="state-card-label">Original</span>
+            <code>${perturbField} = ${fmtState(originalState[perturbField] ?? 0)}</code>
+          </div>
+          <div class="state-card counter">
+            <span class="state-card-label">Counterfactual</span>
+            <code>${perturbField} = ${fmtState(counterState[perturbField] ?? 0)}</code>
+          </div>
         </div>
-        <div class="intervention-row">
-          <span class="intervention-label counter">COUNTERFACTUAL</span>
-          <code>${perturbField} = ${fmtState(counterState[perturbField] ?? 0)}</code>
-        </div>
-        <label class="epsilon-label">ε perturbation on ${perturbField}</label>
-        <input class="range epsilon" type="range" min="-8" max="-2" step="0.1" value="${Math.log10(Math.max(epsilon, 1e-12))}">
-        <div class="epsilon-readout">ε = ${epsilon.toExponential(1)}</div>
-      `;
+        <div class="epsilon-block">
+          <label class="epsilon-label">Perturbation ε on ${perturbField}</label>
+          <input class="range epsilon" type="range" min="-8" max="-2" step="0.1" value="${Math.log10(Math.max(epsilon, 1e-12))}">
+          <div class="epsilon-readout">ε = ${epsilon.toExponential(1)}</div>
+        </div>`;
       const slider = intervention.querySelector<HTMLInputElement>(".epsilon")!;
       const readout = intervention.querySelector(".epsilon-readout")!;
       slider.addEventListener("input", () => {
@@ -164,27 +187,25 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
       const deltas = comparison?.stateDifferences ?? [];
       const deltaMap = new Map(deltas.map((d) => [d.key, d]));
 
-      let body = `<div class="inspector-time">t = ${frame.t.toFixed(2)} ${unit}</div>`;
-      body += `<div class="inspector-grid">`;
-      body += `<span></span><span class="col-head">ORIGINAL</span>`;
-      if (branch) body += `<span class="col-head counter">COUNTER</span><span class="col-head delta">Δ</span>`;
-      body += `</div>`;
+      let table = `<table class="inspector-table"><thead><tr><th></th><th>Original</th>`;
+      if (branch) table += `<th class="col-counter">Counter</th><th class="col-delta">Δ</th>`;
+      table += `</tr></thead><tbody>`;
 
       for (const key of keys) {
         const a = frame.state[key];
         const b = branchFrame?.state[key];
         const d = deltaMap.get(key);
-        body += `<div class="inspector-grid">`;
-        body += `<span class="state-key">${key}</span>`;
-        body += `<span>${typeof a === "number" ? fmtState(a) : "—"}</span>`;
+        table += `<tr><td>${key}</td>`;
+        table += `<td>${typeof a === "number" ? fmtState(a) : "—"}</td>`;
         if (branch) {
-          body += `<span class="counter">${typeof b === "number" ? fmtState(b) : "—"}</span>`;
-          body += `<span class="delta">${d ? fmtDelta(d.delta) : "—"}</span>`;
+          table += `<td class="col-counter">${typeof b === "number" ? fmtState(b) : "—"}</td>`;
+          table += `<td class="col-delta">${d ? fmtDelta(d.delta) : "—"}</td>`;
         }
-        body += `</div>`;
+        table += `</tr>`;
       }
-      body += `</div>`;
-      inspector.innerHTML = `<div class="inspector-kicker">Inspect</div>${body}`;
+      table += `</tbody></table>`;
+
+      inspector.innerHTML = `<div class="inspector-kicker">Inspect</div><div class="inspector-time">t = ${frame.t.toFixed(2)} ${unit}</div>${table}`;
       elements.panel.appendChild(inspector);
     }
   };
@@ -204,7 +225,6 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
 
   if (elements.divergence) {
     elements.divergence.addEventListener("click", seekToDivergence);
-    elements.divergence.classList.add("divergence-event");
   }
 
   sync();

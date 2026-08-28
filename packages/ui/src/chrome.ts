@@ -26,7 +26,7 @@ export function bindModelChrome(options: ModelChromeOptions): ModelChrome {
     elements.modelName && (elements.modelName.textContent = manifest.name);
     elements.modelDesc && (elements.modelDesc.textContent = manifest.description);
     elements.modelId && (elements.modelId.textContent = manifest.id);
-    elements.rendererPill && (elements.rendererPill.textContent = `renderer: ${manifest.renderer}`);
+    elements.rendererPill && (elements.rendererPill.textContent = manifest.renderer);
     const branchCount = runtime.comparisonRuns?.length ?? 0;
     elements.stateCount &&
       (elements.stateCount.textContent =
