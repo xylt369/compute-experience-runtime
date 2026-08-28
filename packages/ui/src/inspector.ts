@@ -1,14 +1,21 @@
-import type { ComputeRuntime, InspectionState, TraceReference, TraceTerm } from "@compute-experience/core";
-import { findTraceTerm, flattenInspectableTerms } from "@compute-experience/core";
+import type { ComputeRuntime, InspectionState, TraceOperandRow } from "@compute-experience/core";
+import {
+  findTraceTerm,
+  inspectionEditTarget,
+  referenceTarget,
+  traceOperandRows,
+} from "@compute-experience/core";
 
 export interface InspectorElements {
   panel: HTMLElement;
   stateFields?: HTMLElement;
+  lens?: HTMLElement;
 }
 
 export interface InspectorOptions {
   runtime: ComputeRuntime;
   elements: InspectorElements;
+  onFocus?: () => void;
 }
 
 export interface InspectorHandle {
@@ -24,38 +31,33 @@ function fmt(value: number): string {
   return value.toFixed(4);
 }
 
-function renderTermRow(term: TraceTerm, activeId: string | null): string {
-  const active = term.id === activeId ? " is-active" : "";
-  return `<button type="button" class="trace-term${active}" data-term="${term.id}">
-    <span class="trace-term-label">${term.label}</span>
-    <span class="trace-term-value">${fmt(term.value)}</span>
-  </button>`;
+function equationTitle(trace: InspectionState["trace"], field: string, unit: string): string {
+  if (trace.initial) return `${field}(t₀)`;
+  return `${field}(t+Δt)`;
 }
 
-function renderRefRow(ref: TraceReference): string {
-  const navigable = ref.frameIndex != null && ref.field;
-  const cls = navigable ? "trace-ref is-nav" : "trace-ref";
-  return `<button type="button" class="${cls}" data-ref="${ref.id}" ${navigable ? `data-frame="${ref.frameIndex}" data-field="${ref.field}"` : ""}>
-    <span class="trace-ref-label">${ref.label}</span>
-    <span class="trace-ref-value">${fmt(ref.value)}</span>
-  </button>`;
+function equationExpression(trace: InspectionState["trace"], field: string): string {
+  if (trace.initial) return `${field}₀ = initial`;
+  if (field === "x") return `${field}(t+Δt) = ${field}(t) + σ(y(t) − x(t)) · Δt`;
+  if (field === "y") return `${field}(t+Δt) = ${field}(t) + (x(t)(ρ − z(t)) − y(t)) · Δt`;
+  if (field === "z") return `${field}(t+Δt) = ${field}(t) + (x(t)·y(t) − β·z(t)) · Δt`;
+  return trace.formula;
+}
+
+function operandTimeLabel(trace: InspectionState["trace"], row: TraceOperandRow): string {
+  if (row.ref?.kind === "dt") return "Δt";
+  if (row.ref?.kind === "parameter") return row.label;
+  if (trace.initial) return "t₀";
+  return `${row.label}(t)`;
 }
 
 export function bindInspectorUI(options: InspectorOptions): InspectorHandle {
   const { runtime, elements } = options;
   let inspection: InspectionState | null = null;
   let draftValue: number | null = null;
+  let editing = false;
 
-  const editableTarget = (state: InspectionState) => {
-    if (state.trace.initial) {
-      return { frameIndex: state.frameIndex, field: state.field };
-    }
-    const ref = state.termId ? findTraceTerm(state.trace.result, state.termId) : null;
-    if (ref?.refs?.[0]?.frameIndex != null && ref.refs[0].field) {
-      return { frameIndex: ref.refs[0].frameIndex, field: ref.refs[0].field };
-    }
-    return { frameIndex: Math.max(0, state.frameIndex - 1), field: state.field };
-  };
+  const openFocus = () => options.onFocus?.();
 
   const syncStateFields = () => {
     if (!elements.stateFields) return;
@@ -67,7 +69,8 @@ export function bindInspectorUI(options: InspectorOptions): InspectorHandle {
     elements.stateFields.innerHTML = runtime.manifest.state
       .map((key) => {
         const value = frame.state[key];
-        const active = inspection?.field === key && inspection.frameIndex === runtime.currentIndex();
+        const active =
+          inspection?.field === key && inspection.frameIndex === runtime.currentIndex();
         return `<button type="button" class="state-field${active ? " is-active" : ""}" data-field="${key}">
           <span class="state-field-key">${key}</span>
           <span class="state-field-val">${typeof value === "number" ? fmt(value) : "—"}</span>
@@ -76,137 +79,219 @@ export function bindInspectorUI(options: InspectorOptions): InspectorHandle {
       .join("");
     elements.stateFields.querySelectorAll<HTMLButtonElement>(".state-field").forEach((btn) => {
       btn.addEventListener("click", () => {
+        runtime.pause();
         const field = btn.dataset.field!;
         draftValue = runtime.currentFrame()?.state[field] ?? null;
-        inspection = runtime.inspect(runtime.currentIndex(), field, null);
-        renderPanel();
-        syncStateFields();
+        editing = false;
+        inspection = runtime.inspect(runtime.currentIndex(), field, null, { replace: true });
+        openFocus();
+        render();
       });
     });
   };
 
+  const renderLens = () => {
+    if (!elements.lens) return;
+    if (!inspection) {
+      elements.lens.hidden = true;
+      elements.lens.replaceChildren();
+      return;
+    }
+    const unit = runtime.model.time?.unit ?? "s";
+    elements.lens.hidden = false;
+    elements.lens.innerHTML = `
+      <span class="lens-kicker">inside</span>
+      <span class="lens-field">${inspection.field}</span>
+      <span class="lens-time">t = ${inspection.trace.time.toFixed(2)}${unit}</span>
+    `;
+  };
+
   const renderPanel = () => {
     elements.panel.replaceChildren();
+    renderLens();
+
     if (!inspection) {
       elements.panel.innerHTML = `
         <div class="inspector-empty">
-          <div class="inspector-kicker">Computational inspector</div>
-          <p class="branch-hint">Select a state value to see how it was computed, trace ancestors, and replay after an intervention.</p>
+          <div class="inspector-kicker">Computation</div>
+          <p class="branch-hint">Click <strong>x</strong>, <strong>y</strong>, or <strong>z</strong> above the trajectory to enter the computation.</p>
         </div>`;
       return;
     }
 
-    const { trace, navigation, frameIndex, field, termId } = inspection;
+    const { trace, navigation, frameIndex, field, termId, value } = inspection;
     const unit = runtime.model.time?.unit ?? "s";
-    const editTarget = editableTarget(inspection);
+    const editTarget = inspectionEditTarget(trace, field, termId);
     const editValue =
       draftValue ??
       runtime.primaryRun.timeline.frames[editTarget.frameIndex]?.state[editTarget.field] ??
-      trace.result.value;
+      value;
+    const focusTerm = termId ? findTraceTerm(trace.result, termId) : trace.result;
+    const title = focusTerm?.label ?? field;
+    const rows = traceOperandRows(trace, termId);
 
     const crumbs =
       navigation.length > 1
-        ? `<div class="trace-crumbs">${navigation
-            .map((item) => `<span class="trace-crumb">${item.label}</span>`)
-            .join('<span class="trace-crumb-sep">←</span>')}</div>`
+        ? `<nav class="trace-crumbs" aria-label="Inspection history">${navigation
+            .map(
+              (item, index) =>
+                `<button type="button" class="trace-crumb" data-crumb="${index}">${item.label}</button>`,
+            )
+            .join('<span class="trace-crumb-sep">→</span>')}</nav>`
         : "";
 
-    const focusTerm = termId ? findTraceTerm(trace.result, termId) : trace.result;
-    const terms = focusTerm ? flattenInspectableTerms(trace.result, termId) : [trace.result];
-    const termBlock = terms.map((term) => renderTermRow(term, termId)).join("");
+    const operandRows = rows
+      .map((row) => {
+        const navigable = row.ref && referenceTarget(row.ref);
+        const navAttrs = navigable
+          ? `data-nav="1" data-frame="${navigable.frameIndex}" data-field="${navigable.field}"`
+          : "";
+        const termAttrs = row.termId ? `data-term="${row.termId}"` : "";
+        const clickable = navigable || row.termId ? " is-clickable" : "";
+        return `<button type="button" class="eq-operand${clickable}" ${navAttrs} ${termAttrs}>
+          <span class="eq-operand-label">${operandTimeLabel(trace, row)}</span>
+          <span class="eq-operand-value">${fmt(row.value)}</span>
+        </button>`;
+      })
+      .join("");
 
-    const refs = (focusTerm?.refs ??
-      focusTerm?.children?.flatMap((child) => child.refs ?? []) ??
-      []) as TraceReference[];
-    const refBlock = refs.length
-      ? `<div class="trace-refs">${refs.map((ref) => renderRefRow(ref)).join("")}</div>`
-      : "";
+    const editBlock = editing
+      ? `<div class="eq-edit open">
+          <div class="eq-edit-head">
+            <span>${editTarget.field}(t = ${editTarget.time.toFixed(2)}${unit})</span>
+          </div>
+          <input class="trace-edit" type="number" step="any" value="${editValue}">
+          <div class="eq-edit-actions">
+            <button type="button" class="control control-accent trace-replay">Replay</button>
+            <button type="button" class="control control-ghost trace-cancel">Cancel</button>
+          </div>
+        </div>`
+      : `<button type="button" class="eq-edit-toggle">Edit ${editTarget.field}(t = ${editTarget.time.toFixed(2)}${unit}) = ${fmt(editValue)}</button>`;
 
     elements.panel.innerHTML = `
       <div class="trace-panel">
         ${crumbs}
-        <div class="inspector-kicker">Why this value?</div>
-        <div class="trace-formula">${trace.formula}</div>
-        <div class="inspector-time">frame ${frameIndex} · t = ${trace.time.toFixed(2)}${unit}</div>
-        <div class="trace-focus">
-          <span class="trace-focus-field">${field}</span>
-          <span class="trace-focus-value">${fmt(inspection.value)}</span>
+        <div class="eq-block">
+          <div class="eq-head">
+            <span class="eq-result-label">${title}</span>
+            <span class="eq-result-value">${fmt(focusTerm?.value ?? value)}</span>
+          </div>
+          <div class="eq-expression">${equationExpression(trace, field)}</div>
+          <div class="eq-substituted">
+            <div class="eq-line">
+              <span class="eq-line-label">${equationTitle(trace, field, unit)}</span>
+              <span class="eq-line-value">= ${fmt(focusTerm?.value ?? value)}</span>
+            </div>
+            ${operandRows}
+          </div>
         </div>
-        <div class="trace-terms">${termBlock}</div>
-        ${refBlock}
-        <div class="intervention-block">
-          <div class="intervention-kicker">Intervene</div>
-          <label class="epsilon-label">${editTarget.field} @ frame ${editTarget.frameIndex}</label>
-          <input class="trace-edit" type="number" step="any" value="${editValue}">
-          <button type="button" class="control control-accent trace-replay">Apply &amp; replay</button>
-        </div>
+        <div class="eq-meta">frame ${frameIndex} · t = ${trace.time.toFixed(2)}${unit} · Δt = ${trace.dt}${unit}</div>
+        ${editBlock}
         ${navigation.length > 1 ? `<button type="button" class="control control-ghost trace-back">← Back</button>` : ""}
       </div>`;
 
-    elements.panel.querySelectorAll<HTMLButtonElement>(".trace-term").forEach((btn) => {
+    elements.panel.querySelectorAll<HTMLButtonElement>(".eq-operand.is-clickable").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const id = btn.dataset.term!;
-        inspection = runtime.inspect(frameIndex, field, id, { push: true });
-        renderPanel();
+        editing = false;
+        if (btn.dataset.term) {
+          inspection = runtime.inspect(frameIndex, field, btn.dataset.term, { push: true });
+          render();
+          return;
+        }
+        if (btn.dataset.nav) {
+          const refFrame = Number(btn.dataset.frame);
+          const refField = btn.dataset.field!;
+          draftValue = runtime.primaryRun.timeline.frames[refFrame]?.state[refField] ?? null;
+          inspection = runtime.inspect(refFrame, refField, null, { push: true, seek: true });
+          render();
+          syncStateFields();
+        }
       });
     });
 
-    elements.panel.querySelectorAll<HTMLButtonElement>(".trace-ref.is-nav").forEach((btn) => {
+    elements.panel.querySelectorAll<HTMLButtonElement>(".trace-crumb").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const refFrame = Number(btn.dataset.frame);
-        const refField = btn.dataset.field!;
-        draftValue = runtime.primaryRun.timeline.frames[refFrame]?.state[refField] ?? null;
-        inspection = runtime.inspect(refFrame, refField, null, { push: true });
-        renderPanel();
+        const targetIndex = Number(btn.dataset.crumb);
+        editing = false;
+        let current = inspection;
+        while (current && current.navigation.length > targetIndex + 1) {
+          current = runtime.inspectionBack();
+        }
+        if (current) {
+          draftValue = current.value;
+          inspection = current;
+        }
+        render();
         syncStateFields();
       });
     });
 
-    const editInput = elements.panel.querySelector<HTMLInputElement>(".trace-edit")!;
-    editInput.addEventListener("input", () => {
+    elements.panel.querySelector(".eq-edit-toggle")?.addEventListener("click", () => {
+      editing = true;
+      render();
+    });
+
+    elements.panel.querySelector(".trace-cancel")?.addEventListener("click", () => {
+      editing = false;
+      draftValue = null;
+      render();
+    });
+
+    const editInput = elements.panel.querySelector<HTMLInputElement>(".trace-edit");
+    editInput?.addEventListener("input", () => {
       draftValue = Number(editInput.value);
     });
 
     elements.panel.querySelector(".trace-replay")?.addEventListener("click", () => {
-      const value = Number(editInput.value);
+      const value = Number(editInput?.value ?? editValue);
       if (!Number.isFinite(value)) return;
       runtime.intervene({ frameIndex: editTarget.frameIndex, field: editTarget.field, value });
       draftValue = value;
-      inspection = runtime.inspect(runtime.currentIndex(), editTarget.field, null, { replace: true });
-      renderPanel();
+      editing = false;
+      inspection = runtime.inspect(editTarget.frameIndex, editTarget.field, null, {
+        replace: true,
+        seek: true,
+      });
+      render();
       syncStateFields();
       runtime.play();
     });
 
     elements.panel.querySelector(".trace-back")?.addEventListener("click", () => {
+      editing = false;
       inspection = runtime.inspectionBack();
       draftValue = inspection?.value ?? null;
-      renderPanel();
+      render();
       syncStateFields();
     });
   };
 
-  const sync = () => {
+  const render = () => {
+    renderPanel();
     syncStateFields();
+  };
+
+  const sync = () => {
     if (inspection) {
       inspection =
         runtime.inspect(inspection.frameIndex, inspection.field, inspection.termId, { replace: true }) ??
         inspection;
-      renderPanel();
+      render();
+    } else {
+      syncStateFields();
     }
   };
 
   const unsubscribe = runtime.subscribe((event) => {
     if (event.type === "inspect") {
       inspection = event.state;
-      renderPanel();
+      render();
     }
-    if (
-      event.type === "frame" ||
-      event.type === "rebuild" ||
-      event.type === "run-seek" ||
-      event.type === "reshape"
-    ) {
+    if (event.type === "frame" || event.type === "run-seek") {
+      syncStateFields();
+      renderLens();
+    }
+    if (event.type === "rebuild" || event.type === "reshape") {
       syncStateFields();
     }
   });

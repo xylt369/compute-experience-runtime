@@ -87,7 +87,7 @@ export interface ComputeRuntime {
     frameIndex?: number,
     field?: string,
     termId?: string | null,
-    options?: { push?: boolean; replace?: boolean },
+    options?: { push?: boolean; replace?: boolean; seek?: boolean },
   ): InspectionState | null;
   clearInspection(): void;
   inspectionBack(): InspectionState | null;
@@ -130,6 +130,7 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
   let mountedModelId = "";
   let mountTarget: RuntimeMountTarget | null = null;
   let inspectionNav: InspectionTarget[] = [];
+  let activeInspection: InspectionState | null = null;
   let reshapeInfo: ReshapeInfo | null = null;
   let reshapeGeneration = 0;
 
@@ -171,6 +172,13 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
             field: reshapeInfo.field,
             priorFrames: reshapeInfo.priorFrames,
             generation: reshapeGeneration,
+          }
+        : undefined,
+      inspection: activeInspection
+        ? {
+            frameIndex: activeInspection.frameIndex,
+            field: activeInspection.field,
+            highlightFrameIndex: activeInspection.frameIndex,
           }
         : undefined,
     });
@@ -460,19 +468,29 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
         value: frame?.state[targetField] ?? trace.result.value,
         navigation: [...inspectionNav],
       };
+      activeInspection = state;
+      if (options?.push || options?.seek) {
+        primaryRun.pause();
+        primaryRun.seekIndex(idx);
+      }
       notify({ type: "inspect", state });
+      pushView();
       return state;
     },
 
     clearInspection() {
       inspectionNav = [];
+      activeInspection = null;
       notify({ type: "inspect", state: null });
+      pushView();
     },
 
     inspectionBack() {
       if (inspectionNav.length <= 1) {
         inspectionNav = [];
+        activeInspection = null;
         notify({ type: "inspect", state: null });
+        pushView();
         return null;
       }
       inspectionNav = inspectionNav.slice(0, -1);
@@ -494,7 +512,11 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
         value: frame?.state[prev.field] ?? trace.result.value,
         navigation: [...inspectionNav],
       };
+      activeInspection = state;
+      primaryRun.pause();
+      primaryRun.seekIndex(prev.frameIndex);
       notify({ type: "inspect", state });
+      pushView();
       return state;
     },
 
@@ -518,6 +540,7 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
         ...frame.state,
         [intervention.field]: intervention.value,
       });
+      primaryRun.seekIndex(intervention.frameIndex);
       notify({
         type: "reshape",
         frameIndex: intervention.frameIndex,

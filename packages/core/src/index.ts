@@ -33,6 +33,8 @@ export {
   flattenInspectableTerms,
   referenceTarget,
   traceTermPath,
+  traceOperandRows,
+  inspectionEditTarget,
 } from "./trace";
 export type {
   ComputationTrace,
@@ -41,6 +43,7 @@ export type {
   InspectionTarget,
   ReshapeInfo,
   StateIntervention,
+  TraceOperandRow,
   TraceReference,
   TraceRefKind,
   TraceTerm,

@@ -29,6 +29,10 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
   private trail = 1;
   private bounds = { cx: 0, cy: 0, cz: 0, extent: 1 };
   private ro: ResizeObserver | null = null;
+  private reshapePulse = 0;
+  private reshapeReveal = 1;
+  private lastReshapeGen = -1;
+  private reshapeRaf = 0;
 
   private readonly onPointerDown = (e: PointerEvent) => {
     if (!this.canvas) return;
@@ -75,6 +79,8 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
   unmount(): void {
     this.ro?.disconnect();
     this.ro = null;
+    if (this.reshapeRaf) cancelAnimationFrame(this.reshapeRaf);
+    this.reshapeRaf = 0;
     if (this.canvas) {
       this.canvas.removeEventListener("pointerdown", this.onPointerDown);
       this.canvas.removeEventListener("pointermove", this.onPointerMove);
@@ -101,8 +107,30 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
       prev?.comparisonRuns?.length !== view.comparisonRuns?.length ||
       prev?.comparisonRuns?.[0]?.frames !== view.comparisonRuns?.[0]?.frames;
     if (framesChanged) this.recomputeBounds();
+    const reshapeGen = view.reshape?.generation ?? -1;
+    if (reshapeGen >= 0 && reshapeGen !== this.lastReshapeGen) {
+      this.lastReshapeGen = reshapeGen;
+      this.reshapePulse = 1;
+      this.reshapeReveal = 0;
+      this.startReshapeAnimation();
+    }
     this.syncCompareHint();
     this.draw();
+  }
+
+  private startReshapeAnimation(): void {
+    if (this.reshapeRaf) cancelAnimationFrame(this.reshapeRaf);
+    const tick = () => {
+      this.reshapeReveal = Math.min(1, this.reshapeReveal + 0.035);
+      this.reshapePulse = Math.max(0, this.reshapePulse - 0.025);
+      this.draw();
+      if (this.reshapeReveal < 1 || this.reshapePulse > 0) {
+        this.reshapeRaf = requestAnimationFrame(tick);
+      } else {
+        this.reshapeRaf = 0;
+      }
+    };
+    this.reshapeRaf = requestAnimationFrame(tick);
   }
 
   resize(): void {
@@ -335,6 +363,88 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     }
   }
 
+  private drawInspectionMarker(
+    ctx: CanvasRenderingContext2D,
+    frames: readonly ModelFrame[],
+    frameIndex: number,
+    field: string,
+    width: number,
+    height: number,
+  ) {
+    const frame = frames[frameIndex];
+    if (!frame) return;
+    const state = frame.state as { x: number; y: number; z: number };
+    const point = this.project(state, width, height);
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(210, 156, 92, 0.9)";
+    ctx.lineWidth = 1.5;
+    ctx.arc(point.x, point.y, 9, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.fillStyle = "rgba(210, 156, 92, 0.22)";
+    ctx.arc(point.x, point.y, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(210, 156, 92, 0.95)";
+    ctx.font = "10px ui-monospace, SFMono-Regular, Consolas, monospace";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(`${field} @ ${frame.t.toFixed(2)}`, point.x + 12, point.y - 10);
+    this.drawDot(ctx, point, "210, 156, 92", 4.2);
+  }
+
+  private drawReshapedTrajectory(
+    ctx: CanvasRenderingContext2D,
+    primary: RunRenderView,
+    reshape: NonNullable<RendererView["reshape"]>,
+    width: number,
+    height: number,
+  ) {
+    const ghostFrames = reshape.priorFrames.map((frame) => ({
+      t: frame.t,
+      state: frame.state as { x: number; y: number; z: number },
+    }));
+    const sharedEnd = Math.max(0, reshape.frameIndex);
+    this.drawSegment(ctx, primary.frames, 0, sharedEnd, width, height, SHARED_RGB, 0.95);
+    this.drawSegment(
+      ctx,
+      ghostFrames as typeof primary.frames,
+      1,
+      ghostFrames.length - 1,
+      width,
+      height,
+      SHARED_RGB,
+      0.14 + 0.1 * this.reshapePulse,
+    );
+
+    const futureEnd = primary.cursor;
+    const futureSpan = Math.max(1, futureEnd - reshape.frameIndex);
+    const revealedEnd = reshape.frameIndex + Math.floor(futureSpan * this.reshapeReveal);
+    const branchAlpha = 0.55 + 0.45 * this.reshapePulse;
+    this.drawSegment(
+      ctx,
+      primary.frames,
+      reshape.frameIndex,
+      revealedEnd,
+      width,
+      height,
+      PRIMARY_RGB,
+      branchAlpha,
+    );
+
+    const forkFrame = primary.frames[reshape.frameIndex];
+    if (forkFrame) {
+      const forkPoint = this.project(
+        forkFrame.state as { x: number; y: number; z: number },
+        width,
+        height,
+      );
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(210, 156, 92, ${0.55 + 0.45 * this.reshapePulse})`;
+      ctx.lineWidth = 1.6;
+      ctx.arc(forkPoint.x, forkPoint.y, 6 + 3 * this.reshapePulse, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
   private drawSingleTrajectory(
     ctx: CanvasRenderingContext2D,
     run: RunRenderView,
@@ -372,41 +482,22 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
 
     const reshape = view.reshape;
     if (reshape && reshape.priorFrames.length > 1) {
-      const ghostFrames = reshape.priorFrames.map((frame) => ({
-        t: frame.t,
-        state: frame.state as { x: number; y: number; z: number },
-      }));
-      const sharedEnd = Math.max(0, reshape.frameIndex);
-      this.drawSegment(ctx, primary.frames, 0, sharedEnd, width, height, SHARED_RGB, 0.95);
-      this.drawSegment(
-        ctx,
-        ghostFrames as typeof primary.frames,
-        1,
-        ghostFrames.length - 1,
-        width,
-        height,
-        SHARED_RGB,
-        0.22,
-      );
-      this.drawSegment(ctx, primary.frames, reshape.frameIndex, primary.cursor, width, height, PRIMARY_RGB);
-
-      const forkFrame = primary.frames[reshape.frameIndex];
-      if (forkFrame) {
-        const forkPoint = this.project(
-          forkFrame.state as { x: number; y: number; z: number },
-          width,
-          height,
-        );
-        ctx.beginPath();
-        ctx.strokeStyle = "rgba(210, 156, 92, 0.85)";
-        ctx.lineWidth = 1.4;
-        ctx.arc(forkPoint.x, forkPoint.y, 6, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      return;
+      this.drawReshapedTrajectory(ctx, primary, reshape, width, height);
+    } else {
+      this.drawSingleTrajectory(ctx, primary, width, height, PRIMARY_RGB);
     }
 
-    this.drawSingleTrajectory(ctx, primary, width, height, PRIMARY_RGB);
+    const inspection = view.inspection;
+    if (inspection) {
+      this.drawInspectionMarker(
+        ctx,
+        primary.frames,
+        inspection.highlightFrameIndex,
+        inspection.field,
+        width,
+        height,
+      );
+    }
   }
 
   private drawDot(ctx: CanvasRenderingContext2D, p: Point2D, rgb = PRIMARY_RGB, radius = 3.6) {

@@ -51,6 +51,7 @@ const els = {
   params: document.querySelector<HTMLElement>("#params")!,
   counterfactualPanel: document.querySelector<HTMLElement>("#counterfactualPanel")!,
   inspectorPanel: document.querySelector<HTMLElement>("#inspectorPanel")!,
+  inspectorLens: document.querySelector<HTMLElement>("#inspectorLens")!,
   stateFields: document.querySelector<HTMLElement>("#stateFields")!,
   metrics: document.querySelector<HTMLElement>("#metrics")!,
   stateCount: document.querySelector<HTMLElement>("#stateCount")!,
@@ -154,6 +155,7 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     counterfactualMode: counterfactual,
     intervention,
     showOutcomes: intervention?.mode === "parameter",
+    onInspectorFocus: () => setDrawer(true),
     elements: {
       modelName: els.modelName,
       modelDesc: els.modelDesc,
@@ -164,6 +166,7 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
         ? {
             panel: els.inspectorPanel,
             stateFields: els.stateFields,
+            lens: els.inspectorLens,
           }
         : undefined,
       counterfactual: counterfactual

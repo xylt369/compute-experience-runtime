@@ -50,8 +50,10 @@ export function explainField(
       field,
       frameIndex: 0,
       time: frame.t,
+      inputFrameIndex: 0,
+      inputTime: frame.t,
       dt,
-      formula: `${field}₀ = initial`,
+      formula: `${field}(t₀) = initial`,
       initial: true,
       result: {
         id: `${field}_initial`,
@@ -77,10 +79,14 @@ export function explainField(
   if (!ctx) return null;
   const trace = model.explain(ctx, field);
   if (!trace) return null;
+  const inputFrame = frames[frameIndex - 1]!;
   return {
     ...trace,
+    field,
     frameIndex,
     time: frame.t,
+    inputFrameIndex: frameIndex - 1,
+    inputTime: inputFrame.t,
     dt,
   };
 }

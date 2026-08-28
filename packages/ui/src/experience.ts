@@ -29,6 +29,7 @@ export interface MountExperienceOptions {
   perturbField?: string;
   intervention?: InterventionConfig;
   showOutcomes?: boolean;
+  onInspectorFocus?: () => void;
 }
 
 export interface ExperienceHandle {
@@ -48,7 +49,11 @@ export function mountExperienceUI(options: MountExperienceOptions): ExperienceHa
     disposers.push(bindParameterPanel({ root: elements.params, runtime }).dispose);
   }
   if (options.inspectorMode && elements.inspector) {
-    inspector = bindInspectorUI({ runtime, elements: elements.inspector });
+    inspector = bindInspectorUI({
+      runtime,
+      elements: elements.inspector,
+      onFocus: options.onInspectorFocus,
+    });
     disposers.push(inspector.dispose);
   } else if (options.counterfactualMode && elements.counterfactual) {
     counterfactual = bindCounterfactualUI({

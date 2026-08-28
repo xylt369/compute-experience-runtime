@@ -40,6 +40,12 @@ export interface RendererView<Frame = ModelFrame, Manifest = ModelManifest> {
     priorFrames: readonly Frame[];
     generation: number;
   };
+  /** Active computational inspection focus for trajectory highlighting. */
+  inspection?: {
+    frameIndex: number;
+    field: string;
+    highlightFrameIndex: number;
+  };
 }
 
 export interface RuntimeRenderer<Frame = ModelFrame, Manifest = ModelManifest> {

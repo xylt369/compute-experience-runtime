@@ -1,6 +1,8 @@
 import { defineModel, type ModelDefinition } from "@compute-experience/core";
 import type { ComputationTrace, ExplainStepContext, TraceReference, TraceTerm } from "@compute-experience/core";
 
+type ExplainResult = Omit<ComputationTrace, "inputFrameIndex" | "inputTime">;
+
 function stateRef(
   field: string,
   value: number,
@@ -25,7 +27,7 @@ function dtRef(value: number): TraceReference {
   return { kind: "dt", id: "dt", label: "dt", value };
 }
 
-function explainX(ctx: ExplainStepContext): ComputationTrace {
+function explainX(ctx: ExplainStepContext) {
   const { state, parameters, dt, t, frameIndex } = ctx;
   const x = state.x;
   const y = state.y;
@@ -107,10 +109,10 @@ function explainX(ctx: ExplainStepContext): ComputationTrace {
       role: "result",
       children,
     },
-  };
+  } satisfies ExplainResult;
 }
 
-function explainY(ctx: ExplainStepContext): ComputationTrace {
+function explainY(ctx: ExplainStepContext) {
   const { state, parameters, dt, t, frameIndex } = ctx;
   const x = state.x;
   const y = state.y;
@@ -192,10 +194,10 @@ function explainY(ctx: ExplainStepContext): ComputationTrace {
         },
       ],
     },
-  };
+  } satisfies ExplainResult;
 }
 
-function explainZ(ctx: ExplainStepContext): ComputationTrace {
+function explainZ(ctx: ExplainStepContext) {
   const { state, parameters, dt, t, frameIndex } = ctx;
   const x = state.x;
   const y = state.y;
@@ -286,7 +288,7 @@ function explainZ(ctx: ExplainStepContext): ComputationTrace {
         },
       ],
     },
-  };
+  } satisfies ExplainResult;
 }
 
 export const lorenz: ModelDefinition = defineModel({

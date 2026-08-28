@@ -28,9 +28,15 @@ export interface TraceTerm {
 /** Trace explaining how a state field at a specific frame was computed. */
 export interface ComputationTrace {
   field: string;
+  /** Result frame index (state at t + Δt). */
   frameIndex: number;
+  /** Result time. */
   time: number;
   dt: number;
+  /** Input frame index (state at t). */
+  inputFrameIndex: number;
+  /** Input time. */
+  inputTime: number;
   formula: string;
   result: TraceTerm;
   initial?: boolean;
@@ -119,4 +125,61 @@ export function flattenInspectableTerms(root: TraceTerm, termId: string | null):
   const items: TraceTerm[] = [focus];
   for (const child of focus.children ?? []) items.push(child);
   return items;
+}
+
+export interface TraceOperandRow {
+  id: string;
+  label: string;
+  value: number;
+  termId?: string;
+  ref?: TraceReference;
+}
+
+/** Flat operand rows for equation-oriented inspector display. */
+export function traceOperandRows(trace: ComputationTrace, termId: string | null): TraceOperandRow[] {
+  const focus = termId ? findTraceTerm(trace.result, termId) : trace.result;
+  if (!focus) return [];
+
+  if (focus.children?.length) {
+    return focus.children.map((child) => ({
+      id: child.id,
+      label: child.label,
+      value: child.value,
+      termId: child.id,
+      ref: child.refs?.[0],
+    }));
+  }
+
+  return (focus.refs ?? []).map((ref) => ({
+    id: ref.id,
+    label: ref.label,
+    value: ref.value,
+    ref,
+  }));
+}
+
+export function inspectionEditTarget(
+  trace: ComputationTrace,
+  field: string,
+  termId: string | null,
+): { frameIndex: number; field: string; time: number } {
+  if (termId) {
+    const term = findTraceTerm(trace.result, termId);
+    const stateRef = term?.refs?.find((ref) => ref.kind === "state" && ref.frameIndex != null && ref.field);
+    if (stateRef?.frameIndex != null && stateRef.field) {
+      return { frameIndex: stateRef.frameIndex, field: stateRef.field, time: trace.inputTime };
+    }
+    for (const child of term?.children ?? []) {
+      const nested = child.refs?.find((ref) => ref.kind === "state" && ref.frameIndex != null && ref.field);
+      if (nested?.frameIndex != null && nested.field) {
+        return { frameIndex: nested.frameIndex, field: nested.field, time: trace.inputTime };
+      }
+    }
+  }
+
+  if (trace.initial) {
+    return { frameIndex: trace.frameIndex, field, time: trace.time };
+  }
+
+  return { frameIndex: trace.frameIndex, field, time: trace.time };
 }
