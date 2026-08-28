@@ -7,6 +7,9 @@ export type PrimitiveId =
   | "scaled-negation"
   | "constant-offset"
   | "ratio"
+  | "saturating-growth"
+  | "nonlinear-restoring"
+  | "magnitude"
   | "integrate";
 
 export type WireKind = "state" | "parameter" | "node" | "constant" | "dt";

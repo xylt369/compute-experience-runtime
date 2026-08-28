@@ -11,6 +11,9 @@ export type {
 export { ComputationalRun } from "./run";
 export type { CreateRunOptions, Run, RunListener, RunMeta, RunSnapshotData } from "./run";
 
+export { CoWPageTable } from "./memory";
+export type { MemoryPage, PageAllocationOptions, PageId, PageTableStats } from "./memory";
+
 export {
   compare,
   compareRuns,
@@ -59,6 +62,8 @@ export {
   serializeSnapshot,
   writeStoredSnapshot,
 } from "./snapshot";
+export { generateInteractiveHtml } from "./export/html";
+
 
 export {
   EMPTY_EXPERIENCE_CAPABILITIES,

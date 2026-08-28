@@ -192,6 +192,63 @@ export const PRIMITIVE_REGISTRY: Record<PrimitiveId, PrimitiveDefinition> = {
     },
   },
 
+  "saturating-growth": {
+    ports: { inputs: { state: "scalar", rate: "scalar", capacity: "scalar" }, outputs: { out: "scalar" } },
+    evaluate({ state, rate, capacity }) {
+      if (capacity === 0) return 0;
+      return rate * state * (1 - state / capacity);
+    },
+    traceTerm({ nodeId, label, inputs }) {
+      const state = inputs.state!;
+      const rate = inputs.rate!;
+      const capacity = inputs.capacity!;
+      const value = capacity.value === 0 ? 0 : rate.value * state.value * (1 - state.value / capacity.value);
+      return {
+        id: nodeId,
+        label: label ?? `${rate.label}·${state.label}·(1 − ${state.label}/${capacity.label})`,
+        value,
+        role: "product",
+        children: [rate, state, capacity],
+      };
+    },
+  },
+
+  "nonlinear-restoring": {
+    ports: { inputs: { angle: "scalar", frequencySq: "scalar" }, outputs: { out: "scalar" } },
+    evaluate({ angle, frequencySq }) {
+      return -frequencySq * Math.sin(angle);
+    },
+    traceTerm({ nodeId, label, inputs }) {
+      const angle = inputs.angle!;
+      const frequencySq = inputs.frequencySq!;
+      return {
+        id: nodeId,
+        label: label ?? `−${frequencySq.label}·sin(${angle.label})`,
+        value: -frequencySq.value * Math.sin(angle.value),
+        role: "product",
+        children: [frequencySq, angle],
+      };
+    },
+  },
+
+  magnitude: {
+    ports: { inputs: { a: "scalar", b: "scalar" }, outputs: { out: "scalar" } },
+    evaluate({ a, b }) {
+      return Math.hypot(a, b);
+    },
+    traceTerm({ nodeId, label, inputs }) {
+      const a = inputs.a!;
+      const b = inputs.b!;
+      return {
+        id: nodeId,
+        label: label ?? `√(${a.label}² + ${b.label}²)`,
+        value: Math.hypot(a.value, b.value),
+        role: "product",
+        children: [a, b],
+      };
+    },
+  },
+
   integrate: {
     ports: { inputs: { state: "scalar", rate: "scalar", dt: "scalar" }, outputs: { out: "scalar" } },
     evaluate({ state, rate, dt }) {

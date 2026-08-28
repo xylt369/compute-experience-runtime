@@ -8,8 +8,12 @@
     "packages/renderers",
     "packages/ui"
   ],
+  "bin": {
+    "cx": "./bin/cx.ts"
+  },
   "scripts": {
     "dev": "vite",
+    "cx": "vitest --run bin/cx.ts",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",

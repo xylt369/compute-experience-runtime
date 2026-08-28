@@ -169,8 +169,19 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
   private syncHud() {
     const angle = this.currentAngle();
     const omega = this.currentOmega();
-    if (this.angleEl) this.angleEl.textContent = `θ ${angle.toFixed(2)} rad`;
-    if (this.omegaEl) this.omegaEl.textContent = `ω ${omega.toFixed(2)} rad/s`;
+    const branch = this.view?.comparisonRuns?.[0];
+    if (branch && this.angleEl) {
+      const branchAngle = branch.frame.state.angle ?? 0;
+      const dAngle = branchAngle - angle;
+      this.angleEl.innerHTML = `θ <span style="color:#007aff">${angle.toFixed(2)}</span> vs <span style="color:#ff9500">${branchAngle.toFixed(2)}</span> <small>(Δ ${dAngle >= 0 ? "+" : ""}${dAngle.toFixed(2)})</small>`;
+      if (this.omegaEl) {
+        const branchOmega = branch.frame.state.angularVelocity ?? 0;
+        this.omegaEl.innerHTML = `ω <span style="color:#007aff">${omega.toFixed(2)}</span> vs <span style="color:#ff9500">${branchOmega.toFixed(2)}</span>`;
+      }
+    } else {
+      if (this.angleEl) this.angleEl.textContent = `θ ${angle.toFixed(2)} rad`;
+      if (this.omegaEl) this.omegaEl.textContent = `ω ${omega.toFixed(2)} rad/s`;
+    }
   }
 
   private currentAngle() {
@@ -214,7 +225,7 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
     const view = this.view;
     const layout = this.layout();
     if (!ctx || !view || !layout) return;
-    ctx.fillStyle = "#f5f5f7";
+    ctx.fillStyle = "#faf9f5";
     ctx.fillRect(0, 0, layout.width, layout.height);
 
     ctx.strokeStyle = "rgba(60, 60, 67, 0.28)";
@@ -224,6 +235,27 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
     ctx.lineTo(layout.pivot.x + 28, layout.pivot.y);
     ctx.stroke();
 
+    const branch = view.comparisonRuns?.[0];
+
+    // 1. Draw ghost branch trajectory if comparing
+    if (branch && branch.frames.length > 1) {
+      const bKeep = Math.max(2, Math.floor((branch.cursor + 1) * this.trail));
+      const bStart = Math.max(0, branch.cursor + 1 - bKeep);
+      const bSlice = branch.frames.slice(bStart, branch.cursor + 1);
+      if (bSlice.length > 1) {
+        ctx.beginPath();
+        for (let i = 0; i < bSlice.length; i += 1) {
+          const bBob = this.bobPoint(bSlice[i].state.angle, layout);
+          if (i === 0) ctx.moveTo(bBob.x, bBob.y);
+          else ctx.lineTo(bBob.x, bBob.y);
+        }
+        ctx.strokeStyle = "rgba(255, 149, 0, 0.35)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    // 2. Draw primary trajectory
     const keep = Math.max(2, Math.floor((view.cursor + 1) * this.trail));
     const start = Math.max(0, view.cursor + 1 - keep);
     const slice = view.frames.slice(start, view.cursor + 1);
@@ -247,8 +279,47 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
       ctx.stroke();
     }
 
+    // 3. If branch exists, draw ghost branch pendulum
+    if (branch) {
+      const branchAngle = branch.frame.state.angle ?? 0;
+      const bBob = this.bobPoint(branchAngle, layout);
+
+      ctx.beginPath();
+      ctx.moveTo(layout.pivot.x, layout.pivot.y);
+      ctx.lineTo(bBob.x, bBob.y);
+      ctx.strokeStyle = "rgba(255, 149, 0, 0.75)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.beginPath();
+      ctx.fillStyle = "rgba(255, 149, 0, 0.2)";
+      ctx.arc(bBob.x, bBob.y, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.fillStyle = "#ff9500";
+      ctx.arc(bBob.x, bBob.y, 7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 4. Draw primary pendulum
     const angle = this.currentAngle();
     const bob = this.bobPoint(angle, layout);
+
+    // If branch exists, draw dotted line between bobs (Divergence distance)
+    if (branch) {
+      const bBob = this.bobPoint(branch.frame.state.angle ?? 0, layout);
+      ctx.beginPath();
+      ctx.moveTo(bob.x, bob.y);
+      ctx.lineTo(bBob.x, bBob.y);
+      ctx.strokeStyle = "rgba(255, 59, 48, 0.6)";
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([2, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
     ctx.beginPath();
     ctx.moveTo(layout.pivot.x, layout.pivot.y);
     ctx.lineTo(bob.x, bob.y);

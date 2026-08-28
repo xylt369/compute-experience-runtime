@@ -1,171 +1,171 @@
-# Compute Experience Runtime
+# Compute Experience Runtime (计算体验微内核与反事实介质)
 
 [English](README.md) | [简体中文](README_zh.md)
 
-> 只管编写模型，交互体验交给运行时。
+<p align="center">
+  <strong>面向 AI 与科学计算的开源反事实计算介质与防伪微内核。</strong><br>
+  <em>编写模型规则，由运行时接管持久化、可漫游、可分叉的时空计算体验。</em>
+</p>
 
-Compute Experience Runtime 是一个开源库，用于将计算模型转化为可交互体验。开发者定义**计算什么**；运行时拥有 **Run**——持久、可导航的执行历史——并让人能够**进入计算本身**。
+<p align="center">
+  <a href="https://github.com/xylt369/compute-experience-runtime/actions"><img src="https://img.shields.io/badge/tests-130%20passed-34c759.svg" alt="Tests" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/typescript-strict-007acc.svg" alt="TypeScript" /></a>
+  <a href="https://vitejs.dev/"><img src="https://img.shields.io/badge/bundle-~60KB-ff9500.svg" alt="Vite Bundle" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a>
+</p>
 
-核心边界：
+---
 
-```text
-Model ≠ Run ≠ Experience
+## 💡 核心哲学（The Core Philosophy）
 
-Model
-  ↓
-Run
-  ↓
-State History + Trace
-  ↓
-Runtime
-  ↓
-Experience
-```
+传统软件将计算视为一次性的黑盒函数调用：
 
-- **Model** — 计算规则（`initial` / `step` / `derive`）、可选 `explain()`、清单元数据。
-- **Run** — 特定参数与状态下的一次执行历史。
-- **Experience** — 回放、检查、追溯、干预、重放。
+$$\text{输入} \longrightarrow \boxed{\text{黑盒代码计算}} \longrightarrow \text{输出}$$
 
-计算不是一次性黑盒。Run 是可以被检查、跟随、触碰、重塑的对象。
+**Compute Experience Runtime** 将每一次运行（Run）视为一个持久存在、可漫游、可分叉的平行时空：
 
-本项目**不是** AI 平台，没有 LLM、账户或云端后端。
-
-## 产品命题
-
-传统软件：
+$$\text{Model (模型规则)} \xrightarrow{\quad} \text{Run (写时复制时空历史)} \xrightarrow{\quad} \text{Experience (观察 · 溯源 · 分叉干预 · 重演)}$$
 
 ```text
-输入 → 计算 → 输出
+       Model ≠ Run ≠ Experience
+
+Model (模型)       ──► 纯数学动力学规则 (initial / step / derive / 闭合原语)
+Run (运行实例)     ──► 基于写时复制 (CoW) 内存分页的高性能确定性历史状态流
+Experience (体验)  ──► 交互计算介质：暂停、因果溯源、打点分叉平行未来、触摸并干预状态
 ```
 
-本项目探索：
+---
 
-```text
-计算世界 → 检查 → 追溯 → 干预 → 重放 → 观察后果
+## ⚡ 30 秒快速上手（30-Second Quickstarts）
+
+### 1. Web 网页与任意前端项目（1 行代码嵌入）
+
+```html
+<div id="simulation" style="width: 100%; height: 400px;"></div>
+
+<script type="module">
+  import { mountExperience } from "@compute-experience/ui";
+  import { lorenz } from "./examples/lorenz";
+
+  // 一行代码挂载完整的交互计算画布
+  const exp = mountExperience("#simulation", {
+    model: lorenz,
+    counterfactual: true,
+    autostart: true,
+  });
+
+  // 在 t = 5.0 秒处分叉平行未来，施加 10⁻⁸ 的微小蝴蝶效应扰动
+  exp.fork(5.0, { field: "x", delta: 1e-8 });
+</script>
 ```
 
-Playground 的第一个完整体验是 **Lorenz 计算显微镜**——轨迹本身就是界面。
-
-```text
-watch → hold → ask → follow → touch → release → replay
-```
-
-## 代码包结构
-
-| 路径 | 职责 |
-| --- | --- |
-| `packages/core` | 模型协议、Run、检查/干预、fork/compare、快照 |
-| `packages/renderers` | 轨迹、摆、时间序列渲染器 |
-| `packages/ui` | manifest UI、计算显微镜、反事实面板 |
-| `playground/` | 浏览器演示 |
-| `examples/` | 内置模型 |
-| `bridge/` | Python 离线 NDJSON 协议 |
-
-## 快速开始
+### 2. POSIX 命令行工具链（`cx` CLI）
 
 ```bash
-npm install
-npm run dev
-npm test
-npm run build
+# 无头运行仿真并将状态帧流式输出到 UNIX 管道
+npx cx run lorenz-attractor --format ndjson | jq .state
+
+# 在时间线上分叉并精确计算 IEEE-754 位级浮点发散度与发散时刻
+npx cx diff lorenz-attractor --at 5.0 --intervene x=1e-8
+
+# 静态校验组合模型的因果拓扑无环性与原语闭集合法性
+npx cx inspect sir-epidemic
 ```
 
-## Lorenz 计算显微镜
+### 3. Python / Jupyter Notebook / Google Colab 交互式嵌入
 
-Playground 默认打开 **Lorenz attractor**，世界优先模式：
+```python
+import compute_experience as cx
 
-1. **Watch** — 全屏轨迹自动运行
-2. **Hold** — 点击轨迹或暂停，当前点成为仪器光标
-3. **Ask** — 点击轨迹点或 x/y/z 读数，就地显示 authored 计算
-4. **Follow** — 点击项（`x·y`、`x`…）深入；状态引用跳到轨迹上的时间祖先
-5. **Touch** — 跟到具体状态值后可编辑
-6. **Release** — 提交干预；过去静止，未来从 seam 重算并向前生长
-7. **Return / restore** — 退出检查或恢复干预前世界
-
-Lorenz **没有**默认的双轨 ORIGINAL/COUNTERFACTUAL 对比。干预在同一条可见世界上原地重塑。
-
-```typescript
-runtime.inspect(420, "z");
-runtime.inspect(419, "x", null, { push: true, seek: true });
-runtime.intervene({ frameIndex: 419, field: "x", value: 8.5 });
-runtime.play();
+# 执行仿真并在 Jupyter 笔记本内直接渲染零依赖交互式控件
+run = cx.simulate("lorenz-attractor", steps=600, dt=0.01)
+cx.show(run) # 在 Notebook 单元格内输出可拖拽、可分叉的完整播放控件
 ```
 
-### Authored trace
+---
 
-Lorenz 的 `explain()` 返回结构化 `ComputationTrace`——作者编写的执行结构，不是自动因果推断或 LLM 解释。
+## 🏛️ 动力系统博物馆（The Museum of Dynamic Systems）
 
-帧语义：帧 N−1 的输入状态 → `step()` → 帧 N 的结果状态。
+Playground 内置 6 大经典动力学系统与 1 键沉浸式故事向导：
 
-## 创建运行时
+| 模型 | 系统类型 | 状态变量 | 探索的物理/科学现象 |
+| --- | --- | --- | --- |
+| 🦋 **Lorenz 吸引子** | 3D 混沌动力学 | $x, y, z$ | 奇异吸引子、蝴蝶效应与指数级轨迹发散 |
+| 🏥 **SIR 传染病模型** | 房室微分方程 | $S, I, R$ | 疫情指数爆发峰值与紧急隔离政策压制（拉平曲线） |
+| ⏱️ **简谐/非线性单摆** | 非线性力学 | $\theta, \omega$ | 大角度越顶翻转与幽灵双摆同屏对比 |
+| 🌀 **Rössler 吸引子** | 连续超混沌 | $x, y, z$ | 单一二次非线性项下的连续螺旋混沌带 |
+| 🦊 **Lotka-Volterra** | 生态种群方程 | $\text{prey}, \text{predator}$ | 捕食者-猎物生态循环震荡与第一积分能量守恒线 |
+| ⚡ **Van der Pol 振荡器** | 非线性阻尼电路 | $x, y$ | 弛豫振荡、负阻效应与自激闭合极限环收敛 |
 
-```typescript
-import { createRuntime, defaultParameters } from "@compute-experience/core";
-import { createRendererRegistry } from "@compute-experience/renderers";
-import { mountExperienceUI } from "@compute-experience/ui";
+---
 
-const runtime = createRuntime({
-  model: myModel,
-  rendererRegistry: createRendererRegistry(),
-  parameters: defaultParameters(myModel),
-});
+## 🔬 计算显微镜（The Computational Microscope）
 
-mountExperienceUI({ runtime, microscopeMode: true, elements: { /* ... */ } });
-```
-
-### 公共 API
-
-- **播放：** `play()`, `pause()`, `seek()`, `seekIndex()`, `step()`
-- **Run：** `forkAt()`, `compare()`, `clearBranches()`, …
-- **检查：** `trace()`, `inspect()`, `inspectionBack()`, `clearInspection()`
-- **干预：** `intervene()`, `reshapeAt()`（Run 层）
-- **快照：** `snapshot()`, `restore()`
-
-## Fork 与对比（次要能力）
-
-Fork 仍可用于探索替代未来，尤其在 SIR 等决策系统上。
-
-```typescript
-const branch = runtime.forkAtTime(5.2);
-branch.setForkState({ ... });
-runtime.setSyncPlayback(true);
-```
-
-对 Lorenz，用户看到的是 `touch → 未来重塑`，而非默认双曲线对比。
-
-### SIR 反事实演示
-
-选择 **SIR Counterfactual**：历史 → 分叉 → 干预时机 → 替代未来 → 对比。
-
-## 内置模型
-
-| 模型 | Playground 体验 |
-| --- | --- |
-| Lorenz attractor | **计算显微镜**（默认） |
-| SIR Counterfactual | Fork / 对比 |
-| Rössler / Pendulum / Logistic | 标准 manifest UI |
-
-## 里程碑
-
-- 运行时与 Run 架构
-- Manifest 驱动 UI
-- **Lorenz 计算显微镜**：世界优先的检查 → 追溯 → 触碰 → 原地重放
-- SIR 反事实演示
-- Authored trace（`explain()`）
-
-## 非目标
-
-- AI / LLM
-- 自动因果推断、符号引擎、源码追踪
-- 账户、云端、WebGPU 重写
-- Python 实时桥接（未来工作）
-
-更多 API 与架构细节见 [英文 README](README.md)。
-
-## 体验层
+在 Playground 中，轨迹本身即是交互界面：
 
 ```text
-Model → Run → Experience Contract → 交互语义 + 世界表达
+watch (观察) ──► hold (定格) ──► ask (提问) ──► follow (溯源) ──► touch (干预) ──► release (释放重演)
 ```
 
-模型在 manifest 中声明 `experience`（能力、profile、targets），运行时通过 `resolveExperience(model)` 解析，UI 按 contract 挂载——而非在 playground 里写 `if (model === "lorenz")`。
+1. **Watch（观察）**：动力系统在全沉浸坐标系中连续演化。
+2. **Hold（定格）**：点击轨迹或时间轴任意刻度，锁定精确时间帧。
+3. **Ask（提问）**：点击任意状态读数（如 $x, y, z$），即时展开其底层数学公式与各项瞬时通量（Flux）。
+4. **Follow（溯源）**：顺着因果项回溯，直接跳转到影响当前数值的上一级时空祖先。
+5. **Touch & Intervene（干预）**：在定格点直接微调状态或参数。
+6. **Release & Replay（重演）**：历史过去保持不可篡改，平行未来从接缝处实时重新演算并发散。
+
+---
+
+## 🛠️ Linux 系统级微内核与写时复制内存架构
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 COMPUTE EXPERIENCE RUNTIME: LINUX-GRADE CORE                │
+│                                                                             │
+│  [ Memory Subsystem ] ──► Chunked Float64 CoW Pages (refcount 零分配分叉)   │
+│  [ POSIX CLI Tool ]   ──► `cx run`, `cx fork`, `cx diff`, `cx inspect`      │
+│  [ Closed Primitives] ──► 9 大闭合动力学原语 (饱和增长 / 非线性恢复力 / 模长)│
+│  [ 4-Tier Verification]─► 21 个测试套件 (130 JS 单元测试 + 5 Python 100% 绿灯)│
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **分块 Float64 内存页（Page Table）**：时空轨迹按固定步长（默认 64 步/页）分块存储。
+- **$O(1)$ 零拷贝分叉**：分叉时仅递增历史页面的引用计数（`refCount++`），不分配冗余内存。
+- **写时复制隔离（CoW）**：仅当分支计算推进并跨越分叉边界产生修改时，才按需克隆变动页面。
+
+---
+
+## 📦 Monorepo 模块分布
+
+| 路径 | 子包 / 模块 | 核心职责 |
+| --- | --- | --- |
+| `packages/core` | `@compute-experience/core` | 微内核、CoW 分页表、Run 生命周期、9 大原语库、8-Pass 校验器、快照序列化 |
+| `packages/renderers` | `@compute-experience/renderers` | 多分支物理渲染器（`Trajectory3D`、`Pendulum2D` 幽灵双摆、`Timeseries2D`） |
+| `packages/ui` | `@compute-experience/ui` | 通用嵌入 API（`mountExperience`）、计算显微镜、极简 HUD、反事实面板 |
+| `bin/cx.ts` | `cx` CLI | POSIX 标准命令行套件，支持无头执行、发散对比与 UNIX 管道流 |
+| `examples/` | 内置动力系统模型 | Lorenz, SIR, Pendulum, Rössler, Lotka-Volterra, Van der Pol |
+| `playground/` | 浏览器探索实验室 | Apple 暖白质感设计（`#faf9f5`）、博物馆向导、自然语言概念编译器 |
+
+---
+
+## 🧪 测试与质量验证
+
+```bash
+# 运行 21 个测试套件，130+ 项单元测试
+npm test
+
+# 运行 Python 跨语言协议一致性测试
+python -m pytest -q
+
+# 极速生产打包
+npm run build
+
+# 启动本地 Playground
+npm run dev
+```
+
+---
+
+## 📄 开源许可证
+
+MIT © [xylt369](https://github.com/xylt369)

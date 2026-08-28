@@ -27,6 +27,7 @@ import {
   createPlaygroundCompilerLLM,
   readPlaygroundCompileEnv,
 } from "./compile-entry";
+import { MUSEUM_TOURS } from "./tours";
 import "./styles.css";
 
 const registry = createRendererRegistry();
@@ -35,6 +36,7 @@ const playgroundLlm = createPlaygroundCompilerLLM(readPlaygroundCompileEnv(impor
 
 const els = {
   brandSub: document.querySelector<HTMLElement>("#brandSub")!,
+  tourSelect: document.querySelector<HTMLSelectElement>("#tourSelect")!,
   modelSelect: document.querySelector<HTMLSelectElement>("#modelSelect")!,
   sidebarEyebrow: document.querySelector<HTMLElement>("#sidebarEyebrow")!,
   fork: document.querySelector<HTMLButtonElement>("#fork")!,
@@ -308,6 +310,25 @@ for (const model of Object.values(models)) {
 els.modelSelect.addEventListener("change", () => {
   setDrawer(false);
   attachRuntime(els.modelSelect.value);
+});
+
+els.tourSelect?.addEventListener("change", () => {
+  const tourKey = els.tourSelect.value;
+  els.tourSelect.value = "";
+  if (!tourKey) return;
+  const tour = (MUSEUM_TOURS as Record<string, any>)[tourKey];
+  if (!tour) return;
+
+  setDrawer(false);
+  attachRuntime(tour.modelId);
+  window.setTimeout(() => {
+    if (!runtime) return;
+    if (tour.steps[1]) {
+      tour.steps[1].action(runtime);
+    } else if (tour.steps[0]) {
+      tour.steps[0].action(runtime);
+    }
+  }, 150);
 });
 els.compileBtn.addEventListener("click", () => {
   void compileAndExplore();

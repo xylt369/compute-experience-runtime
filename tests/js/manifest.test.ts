@@ -25,10 +25,12 @@ describe("JS model manifests", () => {
       [
         "custom-logistic-growth",
         "lorenz-attractor",
+        "lotka-volterra",
         "rossler-attractor",
         "semantic-demo",
         "simple-pendulum",
         "sir-epidemic",
+        "van-der-pol",
       ].sort(),
     );
     const renderers = new Set(modelList.map((model) => model.manifest.renderer));
