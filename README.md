@@ -271,7 +271,7 @@ python bridge/author.py examples/rossler_model.py \
   --steps 520 --dt 0.03
 ```
 
-Schema: `packages/core/src/protocol/manifest-schema.json` (also mirrored at `runtime/authoring.schema.json`).
+Schema: [`packages/core/src/protocol/manifest-schema.json`](packages/core/src/protocol/manifest-schema.json).
 
 ## Milestone status
 

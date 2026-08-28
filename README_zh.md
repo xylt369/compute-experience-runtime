@@ -213,7 +213,7 @@ python bridge/author.py examples/rossler_model.py \
   --steps 520 --dt 0.03
 ```
 
-模式定义 (Schema)：`packages/core/src/protocol/manifest-schema.json`（在 `runtime/authoring.schema.json` 亦有镜像）。
+模式定义 (Schema)：[`packages/core/src/protocol/manifest-schema.json`](packages/core/src/protocol/manifest-schema.json)。
 
 ## 里程碑进展 (Milestone status)
 
