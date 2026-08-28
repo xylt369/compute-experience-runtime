@@ -50,7 +50,15 @@ npm test         # unit tests
 npm run build    # typecheck + production bundle
 ```
 
+Python protocol tests:
+
+```bash
+python -m pytest -q
+```
+
 ## Define a model
+
+A model is a plain object with `manifest`, `time`, `initial`, `step`, and optional `derive`:
 
 ```typescript
 import { defineModel } from "@compute-experience/core";
@@ -66,6 +74,7 @@ export const myModel = defineModel({
       { id: "rate", label: "Rate", type: "number", default: 1, min: 0, max: 5, step: 0.1 },
     ],
     state: ["x"],
+    derived: ["absX"],
   },
   time: { steps: 200, dt: 0.05, playbackRate: 1, unit: "s" },
   initial() {
@@ -74,8 +83,13 @@ export const myModel = defineModel({
   step(state, parameters, dt) {
     return { x: state.x + Number(parameters.rate) * dt };
   },
+  derive(state) {
+    return { absX: Math.abs(state.x) };
+  },
 });
 ```
+
+The manifest drives parameter controls in the playground automatically. Do not hardcode sliders per model.
 
 ## Create a runtime and fork a run
 
@@ -93,9 +107,10 @@ const runtime = createRuntime({
 runtime.rebuild();
 runtime.seek(4.7);
 
+// Fork a branch at time 4.7
 const runB = runtime.forkAtTime(4.7);
 runB.setParameters({ rate: 1.4 });
-// or intervene at the fork point:
+// or intervene on state directly at the fork point:
 // runB.setForkState({ x: runB.currentFrame()!.state.x + 0.1 });
 
 runtime.setSyncPlayback(true);
@@ -149,12 +164,15 @@ Single-run renderers keep working. Comparison-capable renderers may read `view.p
 
 ## Snapshots
 
+Snapshots are deterministic, JSON-compatible objects supporting multi-run trees:
+
 ```json
 {
   "model": "lorenz-attractor",
+  "version": "0.1.0",
   "params": { "sigma": 10, "rho": 28, "beta": 2.67 },
   "cursor": 42,
-  "savedAt": "...",
+  "savedAt": "2026-08-28T00:00:00.000Z",
   "frames": [],
   "primaryRunId": "run_1_...",
   "syncPlayback": true,
@@ -177,7 +195,16 @@ Single-run renderers keep working. Comparison-capable renderers may read `view.p
 
 ## Create a third-party model
 
-See [`examples/custom-model/`](examples/custom-model/). Author only the model; the runtime supplies run, playback, fork, and UI.
+See [`examples/custom-model/`](examples/custom-model/). The authoring file defines only the model. The playground registers it in the catalog and reuses the same `createRuntime()` + `mountExperienceUI()` path — no new UI.
+
+```bash
+# model only
+examples/custom-model/model.ts
+
+# how the experience appears (already provided)
+createRuntime({ model: customModel, rendererRegistry })
+mountExperienceUI({ runtime, elements })
+```
 
 ## Architecture
 
@@ -185,7 +212,7 @@ See [`examples/custom-model/`](examples/custom-model/). Author only the model; t
 Third-party Model
        │
        ▼
-Model Protocol
+Model Protocol (manifest + initial/step/derive)
        │
        ▼
 Computational Run(s)
@@ -204,6 +231,18 @@ Renderer Registry
 ```
 
 ## Python authoring protocol
+
+Python models under `examples/` follow the same contract for offline simulation:
+
+```python
+MANIFEST = {...}
+
+def initial(parameters): ...
+def step(state, parameters, dt): ...
+def derive(state, parameters): ...  # optional
+```
+
+Run as NDJSON:
 
 ```bash
 python bridge/author.py examples/rossler_model.py \
