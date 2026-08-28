@@ -21,12 +21,23 @@ export interface RunComparison {
   sharedHistoryLength: number;
   divergenceIndex: number | null;
   divergenceTime: number | null;
+  /** Max absolute state delta at the divergence frame. */
+  divergenceMagnitude: number | null;
+  /** State field with the largest delta at divergence. */
+  divergenceField: string | null;
   currentTimeA: number;
   currentTimeB: number;
   parameterDifferences: ParameterDiff[];
   stateDifferences: FieldDelta[];
   derivedDifferences: FieldDelta[];
 }
+
+export interface CompareOptions {
+  /** Minimum max-field delta to treat frames as diverged. Default 1e-9. */
+  stateThreshold?: number;
+}
+
+const DEFAULT_STATE_THRESHOLD = 1e-9;
 
 function relativeDelta(a: number, b: number): number | null {
   const denom = Math.max(Math.abs(a), Math.abs(b));
@@ -61,34 +72,69 @@ export function recordDeltas(
   return out;
 }
 
-function framesEqual(a: { state: Record<string, number> }, b: { state: Record<string, number> }): boolean {
+export function frameStateMaxDelta(
+  a: { state: Record<string, number> },
+  b: { state: Record<string, number> },
+): { magnitude: number; field: string | null } {
   const keys = new Set([...Object.keys(a.state), ...Object.keys(b.state)]);
+  let magnitude = 0;
+  let field: string | null = null;
   for (const key of keys) {
-    if ((a.state[key] ?? NaN) !== (b.state[key] ?? NaN)) return false;
+    const av = a.state[key];
+    const bv = b.state[key];
+    if (typeof av !== "number" || typeof bv !== "number") continue;
+    const delta = Math.abs(bv - av);
+    if (delta > magnitude) {
+      magnitude = delta;
+      field = key;
+    }
   }
-  return true;
+  return { magnitude, field };
+}
+
+function framesWithinThreshold(
+  a: { state: Record<string, number> },
+  b: { state: Record<string, number> },
+  threshold: number,
+): boolean {
+  return frameStateMaxDelta(a, b).magnitude < threshold;
 }
 
 /**
- * Deterministic comparison of two Runs.
- * Divergence is the first index where state values differ.
+ * Deterministic comparison of two Runs with threshold-based divergence detection.
  */
-export function compareRuns(runA: ComputationalRun, runB: ComputationalRun): RunComparison {
+export function compareRuns(
+  runA: ComputationalRun,
+  runB: ComputationalRun,
+  options?: CompareOptions,
+): RunComparison {
+  const threshold = options?.stateThreshold ?? DEFAULT_STATE_THRESHOLD;
   const framesA = runA.timeline.frames;
   const framesB = runB.timeline.frames;
   const sharedCap = Math.min(framesA.length, framesB.length);
 
   let sharedHistoryLength = 0;
   let divergenceIndex: number | null = null;
+  let divergenceMagnitude: number | null = null;
+  let divergenceField: string | null = null;
+
   for (let i = 0; i < sharedCap; i += 1) {
-    if (!framesEqual(framesA[i]!, framesB[i]!)) {
+    const { magnitude, field } = frameStateMaxDelta(framesA[i]!, framesB[i]!);
+    if (magnitude >= threshold) {
       divergenceIndex = i;
+      divergenceMagnitude = magnitude;
+      divergenceField = field;
       break;
     }
     sharedHistoryLength = i + 1;
   }
   if (divergenceIndex === null && framesA.length !== framesB.length) {
     divergenceIndex = sharedCap;
+    if (sharedCap > 0) {
+      const { magnitude, field } = frameStateMaxDelta(framesA[sharedCap - 1]!, framesB[sharedCap - 1]!);
+      divergenceMagnitude = magnitude;
+      divergenceField = field;
+    }
   }
 
   const paramKeys = new Set([...Object.keys(runA.parameters), ...Object.keys(runB.parameters)]);
@@ -111,6 +157,8 @@ export function compareRuns(runA: ComputationalRun, runB: ComputationalRun): Run
       divergenceIndex !== null
         ? (framesA[divergenceIndex]?.t ?? framesB[divergenceIndex]?.t ?? null)
         : null,
+    divergenceMagnitude,
+    divergenceField,
     currentTimeA: runA.currentTime(),
     currentTimeB: runB.currentTime(),
     parameterDifferences,
@@ -121,3 +169,5 @@ export function compareRuns(runA: ComputationalRun, runB: ComputationalRun): Run
 
 /** @deprecated Use compareRuns */
 export const compare = compareRuns;
+
+export { framesWithinThreshold, DEFAULT_STATE_THRESHOLD };

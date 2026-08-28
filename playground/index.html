@@ -25,37 +25,41 @@
     <div class="drawer-backdrop" id="drawerBackdrop"></div>
     <div class="layout">
       <aside class="sidebar" id="sidebar">
-        <div class="eyebrow">Model manifest</div>
+        <div class="eyebrow" id="sidebarEyebrow">Model manifest</div>
         <div class="title" id="modelName">—</div>
         <p class="desc" id="modelDesc"></p>
         <div id="params"></div>
+        <div id="counterfactualPanel"></div>
         <div class="metrics" id="metrics"></div>
       </aside>
       <main class="main">
         <div class="subbar">
           <span id="modelId">—</span>
-          <span id="runtimeLabel">model → run → fork → experience</span>
+          <span id="runtimeLabel">run → observe → fork → compare</span>
         </div>
         <div class="stage">
           <div class="grid"></div>
           <div class="hud">
             <div class="pill" id="stateCount">0 states</div>
             <div class="pill" id="rendererPill">renderer: —</div>
+            <button class="pill divergence-event" id="divergence" type="button" hidden></button>
           </div>
           <div class="viewport" id="viewport"></div>
           <div class="renderer-overlay" id="rendererOverlay"></div>
-          <div class="timeline">
+          <div class="timeline-shell" id="timelineShell">
             <button id="play" type="button">▶</button>
-            <input class="scrub" id="scrub" type="range" min="0" max="0" step="1" value="0">
+            <div class="scrub-wrap">
+              <input class="scrub" id="scrub" type="range" min="0" max="0" step="1" value="0">
+            </div>
             <span class="time" id="time">0.00</span>
           </div>
         </div>
         <footer class="footer">
           <div class="footer-copy">
-            <div class="footer-kicker">Computational runs</div>
-            <p>A model defines rules. A run is one navigable history. Fork creates an independent branch that can diverge. Compare shows the difference.</p>
+            <div class="footer-kicker">Counterfactual computation</div>
+            <p>Same past, different intervention, different future. Play · pause · seek · fork · inspect divergence.</p>
           </div>
-          <div class="footer-code">model → run → experience</div>
+          <div class="footer-code">model → run → fork → experience</div>
         </footer>
       </main>
     </div>

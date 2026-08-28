@@ -141,16 +141,37 @@ Public API (stable surface):
 - **Events:** `subscribe(listener)` — `frame`, `rebuild`, `parameters`, `run-created`, `run-forked`, `run-updated`, `run-seek`, `run-state-changed`
 - **Rendering:** `mount({ viewport, overlay? })`, `unmount()`, `resize()`
 
-## Lorenz fork showcase
+## Counterfactual computation
 
-In the playground, open **Lorenz attractor**:
+The playground opens on **Lorenz attractor** as a counterfactual instrument:
 
-1. Play, then pause near a point of interest.
-2. Press **Fork** (or `F`) — creates a branch and nudges state slightly.
-3. Press Play — both runs advance in sync.
-4. Trajectories render together; a connector highlights divergence. Metrics show `Δ` fields.
+```text
+Run → Observe → Seek → Fork → Intervene → Compare futures
+```
 
-**Clear branch** returns to a single run.
+1. **Play** one run (ORIGINAL).
+2. **Pause** and **seek** to a moment in its history.
+3. **Fork** — creates COUNTERFACTUAL from the exact cursor state.
+4. **Intervene** — perturb state (e.g. `x += ε`) via the explicit ORIGINAL / COUNTERFACTUAL readout.
+5. **Play** — both futures advance together on a shared timeline.
+6. **Divergence** appears as a clickable event; click to rewind just before separation and step through it.
+7. **Inspect** state and Δ in the sidebar. **Re-fork** from another point after clearing the branch.
+
+The key idea:
+
+> A computation is not only something that produces an output. A run is a navigable history from which alternative futures can be explored.
+
+```typescript
+runtime.pause();
+runtime.seek(5.2);
+const branch = runtime.forkAtTime(5.2);
+branch.setForkState({ ...branch.currentFrame()!.state, x: originalX + 1e-8 });
+runtime.setSyncPlayback(true);
+runtime.play();
+const diff = runtime.compare(); // divergenceTime, divergenceMagnitude, stateDifferences
+```
+
+Same past → different intervention → different future.
 
 ## Renderers
 
@@ -257,7 +278,8 @@ Schema: `packages/core/src/protocol/manifest-schema.json` (also mirrored at `run
 - **Runtime foundation:** model protocol, playground consumer
 - **Manifest-driven UI:** `@compute-experience/ui`
 - **Third-party custom-model:** model-only authoring proof
-- **Runtime v0.2 Computational Runs:** Run, fork, compare, synced playback, Lorenz showcase
+- **Runtime v0.2 Computational Runs:** Run, fork, compare, synced playback
+- **Counterfactual Lorenz showcase:** fork, intervene, divergence, inspect, re-fork
 
 ## Deliberate non-goals
 

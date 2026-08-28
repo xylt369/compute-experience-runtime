@@ -8,10 +8,12 @@ import type {
 } from "@compute-experience/core";
 
 type Camera = { rx: number; ry: number; zoom: number };
+type Point2D = { x: number; y: number };
 
 const DEFAULT_CAMERA: Camera = { rx: -0.72, ry: 0.72, zoom: 1 };
 const PRIMARY_RGB = "232, 237, 241";
 const BRANCH_RGB = "210, 156, 92";
+const SHARED_RGB = "180, 188, 196";
 
 export class Trajectory3DRenderer implements RuntimeRenderer {
   readonly id = "trajectory-3d";
@@ -119,13 +121,10 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
   private mountHud() {
     if (!this.overlay) return;
     this.overlay.innerHTML = `
-      <div class="hint">drag to rotate · wheel to zoom · fork to branch</div>
-      <div class="legend">
-        <span><i class="swatch x"></i>x</span>
-        <span><i class="swatch y"></i>y</span>
-        <span><i class="swatch z"></i>z</span>
+      <div class="hint">drag · zoom · fork · play both futures</div>
+      <div class="legend" data-role="legend">
+        <span><i class="swatch-inline primary"></i>ORIGINAL</span>
       </div>
-      <div class="compare-hint" data-role="compare-hint" hidden></div>
       <div class="toolbar">
         <button class="tool" type="button" data-act="center">Center</button>
         <button class="tool" type="button" data-act="trail">Trail 100%</button>
@@ -149,16 +148,17 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
   }
 
   private syncCompareHint() {
-    const hint = this.overlay?.querySelector<HTMLElement>('[data-role="compare-hint"]');
-    if (!hint) return;
-    const branches = this.view?.comparisonRuns ?? [];
-    if (!branches.length) {
-      hint.hidden = true;
-      hint.textContent = "";
+    const legend = this.overlay?.querySelector<HTMLElement>('[data-role="legend"]');
+    if (!legend) return;
+    const branch = this.view?.comparisonRuns?.[0];
+    if (!branch) {
+      legend.innerHTML = `<span><i class="swatch-inline primary"></i>ORIGINAL</span>`;
       return;
     }
-    hint.hidden = false;
-    hint.innerHTML = `<span class="swatch-inline primary"></span> primary · <span class="swatch-inline branch"></span> branch`;
+    legend.innerHTML = `
+      <span><i class="swatch-inline primary"></i>ORIGINAL</span>
+      <span><i class="swatch-inline branch"></i>COUNTERFACTUAL</span>
+    `;
   }
 
   private recomputeBounds() {
@@ -214,31 +214,26 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     return { x: width * 0.5 + X * scale, y: height * 0.48 - Y * scale, z: Z };
   }
 
-  private drawTrajectory(
+  private drawSegment(
     ctx: CanvasRenderingContext2D,
-    run: RunRenderView,
+    frames: readonly ModelFrame[],
+    start: number,
+    end: number,
     width: number,
     height: number,
     rgb: string,
-  ) {
-    const keep = Math.max(2, Math.floor((run.cursor + 1) * this.trail));
-    const start = Math.max(0, run.cursor + 1 - keep);
-    const slice = run.frames.slice(start, run.cursor + 1);
-    if (slice.length < 2) {
-      if (slice[0]) {
-        this.drawDot(
-          ctx,
-          this.project(slice[0].state as { x: number; y: number; z: number }, width, height),
-          rgb,
-        );
-      }
-      return null as { x: number; y: number } | null;
+    alphaScale = 1,
+  ): Point2D | null {
+    const slice = frames.slice(Math.max(0, start), Math.min(end + 1, frames.length));
+    if (slice.length < 1) return null;
+    if (slice.length === 1) {
+      const p = this.project(slice[0]!.state as { x: number; y: number; z: number }, width, height);
+      this.drawDot(ctx, p, rgb, 2.8);
+      return p;
     }
-
     const projected = slice.map((frame) =>
       this.project(frame.state as { x: number; y: number; z: number }, width, height),
     );
-
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     for (let i = 1; i < projected.length; i += 1) {
@@ -246,7 +241,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
       const b = projected[i]!;
       const age = i / (projected.length - 1);
       const depth = 0.35 + 0.65 * (0.5 + 0.5 * Math.tanh(b.z * 1.6));
-      ctx.strokeStyle = `rgba(${rgb}, ${(0.12 + 0.78 * age) * depth})`;
+      ctx.strokeStyle = `rgba(${rgb}, ${(0.12 + 0.78 * age) * depth * alphaScale})`;
       ctx.lineWidth = 1.15 + 0.7 * age;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
@@ -258,11 +253,104 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     return head;
   }
 
+  private drawCompareTrajectories(
+    ctx: CanvasRenderingContext2D,
+    primary: RunRenderView,
+    branch: RunRenderView,
+    width: number,
+    height: number,
+  ) {
+    const forkIndex = branch.forkIndex ?? primary.forkIndex ?? 0;
+    const cursor = Math.min(primary.cursor, branch.cursor);
+    const keep = Math.max(2, Math.floor((cursor + 1) * this.trail));
+    const visibleStart = Math.max(0, cursor + 1 - keep);
+    const sharedEnd = Math.min(forkIndex, cursor);
+    const sharedStart = Math.max(0, visibleStart);
+
+    if (sharedEnd >= sharedStart) {
+      this.drawSegment(ctx, primary.frames, sharedStart, sharedEnd, width, height, SHARED_RGB, 0.95);
+    }
+
+    const forkPoint = this.drawSegment(
+      ctx,
+      primary.frames,
+      Math.max(sharedStart, forkIndex),
+      Math.max(sharedStart, forkIndex),
+      width,
+      height,
+      SHARED_RGB,
+      1,
+    );
+
+    const primaryHead = this.drawSegment(
+      ctx,
+      primary.frames,
+      Math.max(forkIndex + 1, visibleStart),
+      cursor,
+      width,
+      height,
+      PRIMARY_RGB,
+    );
+
+    const branchHead = this.drawSegment(
+      ctx,
+      branch.frames,
+      Math.max(forkIndex + 1, visibleStart),
+      cursor,
+      width,
+      height,
+      BRANCH_RGB,
+    );
+
+    if (forkPoint) {
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(180, 188, 196, 0.8)";
+      ctx.lineWidth = 1.2;
+      ctx.arc(forkPoint.x, forkPoint.y, 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    const divergenceIndex = this.view?.comparison?.divergenceIndex;
+    if (divergenceIndex != null && divergenceIndex <= cursor) {
+      const divFrame = primary.frames[divergenceIndex];
+      if (divFrame) {
+        const divPoint = this.project(divFrame.state as { x: number; y: number; z: number }, width, height);
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(210, 156, 92, 0.85)";
+        ctx.lineWidth = 1.5;
+        ctx.arc(divPoint.x, divPoint.y, 7, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    if (primaryHead && branchHead && cursor > forkIndex) {
+      ctx.beginPath();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = "rgba(210, 156, 92, 0.45)";
+      ctx.lineWidth = 1;
+      ctx.moveTo(primaryHead.x, primaryHead.y);
+      ctx.lineTo(branchHead.x, branchHead.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  private drawSingleTrajectory(
+    ctx: CanvasRenderingContext2D,
+    run: RunRenderView,
+    width: number,
+    height: number,
+    rgb: string,
+  ) {
+    const keep = Math.max(2, Math.floor((run.cursor + 1) * this.trail));
+    const start = Math.max(0, run.cursor + 1 - keep);
+    this.drawSegment(ctx, run.frames, start, run.cursor, width, height, rgb);
+  }
+
   private draw() {
     const ctx = this.ctx;
-    const canvas = this.canvas;
     const view = this.view;
-    if (!ctx || !canvas || !view) return;
+    if (!ctx || !view) return;
     const width = this.target?.clientWidth ?? 0;
     const height = this.target?.clientHeight ?? 0;
     ctx.clearRect(0, 0, width, height);
@@ -275,32 +363,23 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
       params: view.params,
       isPrimary: true,
     };
-    const primaryHead = this.drawTrajectory(ctx, primary, width, height, PRIMARY_RGB);
 
     const branch = view.comparisonRuns?.[0];
     if (branch) {
-      const branchHead = this.drawTrajectory(ctx, branch, width, height, BRANCH_RGB);
-      if (primaryHead && branchHead) {
-        ctx.beginPath();
-        ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = "rgba(210, 156, 92, 0.55)";
-        ctx.lineWidth = 1;
-        ctx.moveTo(primaryHead.x, primaryHead.y);
-        ctx.lineTo(branchHead.x, branchHead.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
+      this.drawCompareTrajectories(ctx, primary, branch, width, height);
+    } else {
+      this.drawSingleTrajectory(ctx, primary, width, height, PRIMARY_RGB);
     }
   }
 
-  private drawDot(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, rgb = PRIMARY_RGB) {
+  private drawDot(ctx: CanvasRenderingContext2D, p: Point2D, rgb = PRIMARY_RGB, radius = 3.6) {
     ctx.beginPath();
     ctx.fillStyle = `rgba(${rgb}, 0.18)`;
-    ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, radius + 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
     ctx.fillStyle = `rgb(${rgb})`;
-    ctx.arc(p.x, p.y, 3.6, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
 }

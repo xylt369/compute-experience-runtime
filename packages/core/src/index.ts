@@ -14,7 +14,10 @@ export type { CreateRunOptions, Run, RunListener, RunMeta, RunSnapshotData } fro
 export {
   compare,
   compareRuns,
+  DEFAULT_STATE_THRESHOLD,
   fieldDelta,
+  frameStateMaxDelta,
+  framesWithinThreshold,
   recordDeltas,
 } from "./compare";
 export type { FieldDelta, ParameterDiff, RunComparison } from "./compare";

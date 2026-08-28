@@ -13,10 +13,14 @@ import { mountExperienceUI, type ExperienceHandle } from "@compute-experience/ui
 import { models } from "../../examples";
 import "./styles.css";
 
+const LORENZ_ID = "lorenz-attractor";
+const DEFAULT_EPSILON = 1e-8;
+
 const registry = createRendererRegistry();
 
 const els = {
   modelSelect: document.querySelector<HTMLSelectElement>("#modelSelect")!,
+  sidebarEyebrow: document.querySelector<HTMLElement>("#sidebarEyebrow")!,
   fork: document.querySelector<HTMLButtonElement>("#fork")!,
   clearBranch: document.querySelector<HTMLButtonElement>("#clearBranch")!,
   reset: document.querySelector<HTMLButtonElement>("#reset")!,
@@ -32,19 +36,26 @@ const els = {
   modelDesc: document.querySelector<HTMLElement>("#modelDesc")!,
   modelId: document.querySelector<HTMLElement>("#modelId")!,
   params: document.querySelector<HTMLElement>("#params")!,
+  counterfactualPanel: document.querySelector<HTMLElement>("#counterfactualPanel")!,
   metrics: document.querySelector<HTMLElement>("#metrics")!,
   stateCount: document.querySelector<HTMLElement>("#stateCount")!,
   rendererPill: document.querySelector<HTMLElement>("#rendererPill")!,
+  divergence: document.querySelector<HTMLButtonElement>("#divergence")!,
   viewport: document.querySelector<HTMLElement>("#viewport")!,
   overlay: document.querySelector<HTMLElement>("#rendererOverlay")!,
+  timelineShell: document.querySelector<HTMLElement>("#timelineShell")!,
   scrub: document.querySelector<HTMLInputElement>("#scrub")!,
   play: document.querySelector<HTMLButtonElement>("#play")!,
   time: document.querySelector<HTMLElement>("#time")!,
 };
 
-let currentId = Object.keys(models)[0]!;
+let currentId = LORENZ_ID;
 let runtime: ComputeRuntime | null = null;
 let experience: ExperienceHandle | null = null;
+
+function isCounterfactualModel(modelId: string): boolean {
+  return modelId === LORENZ_ID;
+}
 
 function setDrawer(open: boolean) {
   els.sidebar.classList.toggle("open", open);
@@ -61,8 +72,21 @@ function flash(button: HTMLButtonElement, label: string) {
 
 function syncBranchActions() {
   const hasBranch = (runtime?.comparisonRuns.length ?? 0) > 0;
+  const counterfactual = isCounterfactualModel(currentId);
   els.clearBranch.disabled = !hasBranch;
+  els.fork.hidden = !counterfactual;
+  els.clearBranch.hidden = !counterfactual;
   els.fork.textContent = hasBranch ? "Re-fork" : "Fork";
+}
+
+function syncSidebarMode(modelId: string) {
+  const counterfactual = isCounterfactualModel(modelId);
+  els.sidebarEyebrow.textContent = counterfactual ? "Counterfactual run" : "Model manifest";
+  els.params.hidden = counterfactual;
+  els.counterfactualPanel.hidden = !counterfactual;
+  els.metrics.hidden = counterfactual;
+  els.fork.hidden = !counterfactual;
+  els.clearBranch.hidden = !counterfactual;
 }
 
 function attachRuntime(modelId: string, options?: { params?: Record<string, number>; snapshot?: ExperienceSnapshot }) {
@@ -71,6 +95,7 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
 
   experience?.dispose();
   currentId = modelId;
+  syncSidebarMode(modelId);
 
   runtime = createRuntime({
     model,
@@ -79,14 +104,26 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     syncPlayback: true,
   });
 
+  const counterfactual = isCounterfactualModel(modelId);
+
   experience = mountExperienceUI({
     runtime,
+    counterfactualMode: counterfactual,
+    perturbField: counterfactual ? "x" : undefined,
     elements: {
       modelName: els.modelName,
       modelDesc: els.modelDesc,
       modelId: els.modelId,
       params: els.params,
       metrics: els.metrics,
+      counterfactual: counterfactual
+        ? {
+            panel: els.counterfactualPanel,
+            timeline: els.timelineShell.querySelector(".scrub-wrap")!,
+            scrub: els.scrub,
+            divergence: els.divergence,
+          }
+        : undefined,
       stateCount: els.stateCount,
       rendererPill: els.rendererPill,
       viewport: els.viewport,
@@ -126,19 +163,11 @@ els.modelSelect.addEventListener("change", () => {
 });
 els.reset.addEventListener("click", () => attachRuntime(currentId));
 els.fork.addEventListener("click", () => {
-  if (!runtime) return;
+  if (!runtime || !isCounterfactualModel(currentId)) return;
   runtime.pause();
-  runtime.clearBranches();
   const index = runtime.currentIndex();
-  // Small state nudge so Lorenz (and other state models) visibly diverge after the fork.
-  const frame = runtime.currentFrame();
-  const nudge: Record<string, number> = {};
-  if (frame?.state.x !== undefined) nudge.x = 0.35;
-  else {
-    const firstKey = Object.keys(frame?.state ?? {})[0];
-    if (firstKey) nudge[firstKey] = 0.05 * Math.max(1, Math.abs(frame!.state[firstKey]!));
-  }
-  runtime.forkAt(index, { label: "branch", nudge });
+  runtime.forkAt(index);
+  experience?.counterfactual?.applyIntervention(DEFAULT_EPSILON);
   runtime.setSyncPlayback(true);
   syncBranchActions();
   flash(els.fork, "Forked");
@@ -201,7 +230,7 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   if (editing) return;
-  if (event.code === "KeyF") {
+  if (event.code === "KeyF" && isCounterfactualModel(currentId)) {
     event.preventDefault();
     els.fork.click();
     return;

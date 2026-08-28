@@ -1,3 +1,4 @@
+import type { RunComparison } from "../compare";
 import type { ModelFrame, ModelManifest } from "../protocol/types";
 
 export interface RendererMountOptions {
@@ -10,11 +11,14 @@ export interface RendererMountOptions {
 export interface RunRenderView<Frame = ModelFrame> {
   id: string;
   label?: string;
+  role?: "original" | "counterfactual" | string;
   frame: Frame;
   frames: readonly Frame[];
   cursor: number;
   params: Record<string, number>;
   isPrimary: boolean;
+  forkIndex?: number;
+  forkTime?: number;
 }
 
 export interface RendererView<Frame = ModelFrame, Manifest = ModelManifest> {
@@ -27,6 +31,7 @@ export interface RendererView<Frame = ModelFrame, Manifest = ModelManifest> {
   /** Present when the runtime is comparing multiple runs. */
   primaryRun?: RunRenderView<Frame>;
   comparisonRuns?: RunRenderView<Frame>[];
+  comparison?: RunComparison | null;
   syncTime?: number;
 }
 

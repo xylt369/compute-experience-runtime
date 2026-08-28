@@ -85,14 +85,18 @@ export interface ComputeRuntime {
 
 function toRunView(run: ComputationalRun, isPrimary: boolean): RunRenderView {
   const frame = run.currentFrame();
+  const role = isPrimary ? "original" : "counterfactual";
   return {
     id: run.id,
-    label: run.meta.label,
+    label: run.meta.label ?? role.toUpperCase(),
+    role,
     frame: frame ?? { t: 0, state: {} },
     frames: run.timeline.frames,
     cursor: run.currentIndex(),
     params: { ...run.parameters },
     isPrimary,
+    forkIndex: run.forkPoint?.index,
+    forkTime: run.forkPoint?.time,
   };
 }
 
@@ -116,7 +120,7 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
   let primaryRun = new ComputationalRun({
     model,
     parameters: options.parameters,
-    label: "primary",
+    label: "ORIGINAL",
     clock,
   });
   const branches: ComputationalRun[] = [];
@@ -127,6 +131,7 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
     if (!activeRenderer) return;
     const frame = primaryRun.currentFrame();
     if (!frame) return;
+    const comparison = branches[0] ? compareRuns(primaryRun, branches[0]) : null;
     activeRenderer.update({
       frame,
       frames: primaryRun.timeline.frames,
@@ -136,6 +141,7 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
       params: { ...primaryRun.parameters },
       primaryRun: toRunView(primaryRun, true),
       comparisonRuns: branches.map((run) => toRunView(run, false)),
+      comparison,
       syncTime: syncPlayback ? syncTime : undefined,
     });
   };
@@ -338,7 +344,8 @@ export function createRuntime(options: CreateRuntimeOptions): ComputeRuntime {
 
     forkAt(index, forkOptions) {
       runtime.pause();
-      const branch = primaryRun.forkAt(index, { label: forkOptions?.label ?? "branch", clock });
+      if (branches.length) runtime.clearBranches();
+      const branch = primaryRun.forkAt(index, { label: forkOptions?.label ?? "COUNTERFACTUAL", clock });
       if (forkOptions?.nudge) {
         const base = branch.forkPoint
           ? { ...(branch.timeline.frames[branch.forkPoint.index]?.state ?? {}) }
