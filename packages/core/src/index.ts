@@ -77,6 +77,29 @@ export type {
   InteractionVerb,
 } from "./experience";
 
+export {
+  PRIMITIVE_IDS,
+  PRIMITIVE_REGISTRY,
+  assertValidComposedModel,
+  createComposedExecutor,
+  getPrimitive,
+  isNodeWire,
+  isParameterWire,
+  isStateWire,
+  lorenzComposedModel,
+  validateComposedModel,
+} from "./composed";
+export type {
+  ComposedExecutor,
+  ComposedModel,
+  ComposedNode,
+  PrimitiveDefinition,
+  PrimitiveId,
+  ValidationDiagnostic,
+  ValidationResult,
+  Wire,
+} from "./composed";
+
 export type {
   ExperienceCapabilities,
   ExperienceProfile,

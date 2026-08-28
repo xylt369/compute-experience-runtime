@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://compute-experience.dev/schema/composed-model.json",
+  "title": "ComposedModel",
+  "type": "object",
+  "required": ["id", "version", "state", "parameters", "nodes", "integrators"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "version": { "type": "string", "minLength": 1 },
+    "state": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "parameters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "default"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "default": { "type": "number" }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" },
+      "minItems": 1
+    },
+    "integrators": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/integrator" },
+      "minItems": 1
+    },
+    "time": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "steps": { "type": "integer", "minimum": 1 },
+        "dt": { "type": "number", "exclusiveMinimum": 0 },
+        "playbackRate": { "type": "number", "minimum": 0 },
+        "unit": { "type": "string" }
+      }
+    },
+    "initial": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "formulas": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "wire": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "field"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "state" },
+            "field": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "id"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "parameter" },
+            "id": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "nodeId", "port"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "node" },
+            "nodeId": { "type": "string" },
+            "port": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "constant" },
+            "value": { "type": "number" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "dt" }
+          }
+        }
+      ]
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "primitive", "inputs"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$" },
+        "primitive": {
+          "enum": [
+            "linear-coupling",
+            "product-coupling",
+            "scaled-negation",
+            "constant-offset",
+            "ratio",
+            "integrate"
+          ]
+        },
+        "label": { "type": "string" },
+        "inputs": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/wire" }
+        }
+      }
+    },
+    "integrator": {
+      "type": "object",
+      "required": ["state", "node"],
+      "additionalProperties": false,
+      "properties": {
+        "state": { "type": "string" },
+        "node": { "type": "string" }
+      }
+    }
+  }
+}
