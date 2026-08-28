@@ -75,6 +75,7 @@ const els = {
   worldRestore: document.querySelector<HTMLButtonElement>("#worldRestore")!,
   conceptInput: document.querySelector<HTMLInputElement>("#conceptInput")!,
   compileBtn: document.querySelector<HTMLButtonElement>("#compileBtn")!,
+  compileStrip: document.querySelector<HTMLElement>("#compileStrip")!,
   compileStatus: document.querySelector<HTMLElement>("#compileStatus")!,
   compileBadge: document.querySelector<HTMLElement>("#compileBadge")!,
   compileDetail: document.querySelector<HTMLElement>("#compileDetail")!,
@@ -144,7 +145,8 @@ function flash(button: HTMLButtonElement, label: string) {
 
 function syncBranchActions() {
   const hasBranch = (runtime?.comparisonRuns.length ?? 0) > 0;
-  const canFork = contract?.capabilities.fork ?? false;
+  const composition = contract ? composeExperience(contract) : null;
+  const canFork = (contract?.capabilities.fork ?? false) && !composition?.traceLens;
   const forkLabel = hasBranch ? "Re-fork" : "Fork";
 
   els.clearBranch.disabled = !hasBranch;
@@ -168,6 +170,8 @@ function syncManifestChrome(exp: ExperienceContract) {
   els.metrics.hidden = !composition.manifestPanel;
   els.counterfactualPanel.hidden = true;
   els.drawerToggle.hidden = !composition.manifestPanel;
+  els.compileStrip.hidden = composition.traceLens;
+  els.worldStateReadout.hidden = !composition.worldReadout;
 }
 
 function attachModel(model: ModelDefinition, options?: { params?: Record<string, number>; snapshot?: ExperienceSnapshot }) {
@@ -208,10 +212,10 @@ function attachModel(model: ModelDefinition, options?: { params?: Record<string,
       world: composition.worldShell
         ? {
             stage: els.worldStage,
-            stateReadout: els.worldStateReadout,
+            stateReadout: composition.worldReadout ? els.worldStateReadout : undefined,
             parameters: els.worldParameters,
             recipe: els.worldRecipe,
-            restore: els.worldRestore,
+            restore: composition.showRestore ? els.worldRestore : undefined,
             panel: els.worldPanel,
             hint: els.worldHint,
           }
@@ -253,6 +257,7 @@ function attachModel(model: ModelDefinition, options?: { params?: Record<string,
   } else if (composition.traceLens) {
     runtime.pause();
     runtime.seekIndex(Math.floor(runtime.timeline.length * 0.35));
+    els.worldHint.hidden = false;
   }
 }
 
@@ -378,7 +383,7 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   if (editing) return;
-  if (event.code === "KeyF" && contract?.capabilities.fork) {
+  if (event.code === "KeyF" && contract?.capabilities.fork && !composeExperience(contract).traceLens) {
     event.preventDefault();
     handleFork();
     return;

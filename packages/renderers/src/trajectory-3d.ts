@@ -34,6 +34,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
   private reshapePulse = 0;
   private lastReshapeGen = -1;
   private reshapeRaf = 0;
+  private idleRaf = 0;
   private onInspectionAnchor: ((point: { x: number; y: number } | null) => void) | null = null;
   private onTrajectoryPick:
     | ((pick: { frameIndex: number; screen: { x: number; y: number } }) => void)
@@ -110,6 +111,8 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     this.ro = null;
     if (this.reshapeRaf) cancelAnimationFrame(this.reshapeRaf);
     this.reshapeRaf = 0;
+    if (this.idleRaf) cancelAnimationFrame(this.idleRaf);
+    this.idleRaf = 0;
     if (this.canvas) {
       this.canvas.removeEventListener("pointerdown", this.onPointerDown);
       this.canvas.removeEventListener("pointermove", this.onPointerMove);
@@ -145,7 +148,27 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
       this.startReshapeAnimation();
     }
     this.syncCompareHint();
+    this.syncIdlePulse(view);
     this.draw();
+  }
+
+  private syncIdlePulse(view: RendererView): void {
+    const wantsPulse = !view.playing && !view.inspection && !view.comparisonRuns?.length;
+    if (!wantsPulse) {
+      if (this.idleRaf) cancelAnimationFrame(this.idleRaf);
+      this.idleRaf = 0;
+      return;
+    }
+    if (this.idleRaf) return;
+    const tick = () => {
+      if (!this.view || this.view.playing || this.view.inspection || this.view.comparisonRuns?.length) {
+        this.idleRaf = 0;
+        return;
+      }
+      this.draw();
+      this.idleRaf = requestAnimationFrame(tick);
+    };
+    this.idleRaf = requestAnimationFrame(tick);
   }
 
   private startReshapeAnimation(): void {
@@ -554,6 +577,14 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     const frame = frames[frameIndex];
     if (!frame) return;
     const point = this.project(frame.state as { x: number; y: number; z: number }, width, height);
+    const pulse = 0.55 + 0.45 * Math.sin(performance.now() / 420);
+
+    ctx.beginPath();
+    ctx.strokeStyle = `rgba(0, 122, 255, ${0.12 + 0.1 * pulse})`;
+    ctx.lineWidth = 1.5;
+    ctx.arc(point.x, point.y, 14 + 4 * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+
     ctx.beginPath();
     ctx.strokeStyle = "rgba(0, 122, 255, 0.28)";
     ctx.lineWidth = 1;
@@ -567,6 +598,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     ctx.lineWidth = 1.1;
     ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
     ctx.stroke();
+    this.drawDot(ctx, point, PRIMARY_RGB, 3.8);
   }
 
   private drawGrowingFuture(

@@ -58,6 +58,22 @@ function canTouch(inspection: InspectionState, contract: ExperienceContract): bo
   return focus.frameIndex !== origin.frameIndex || focus.field !== origin.field;
 }
 
+function hasFollowableOperands(rows: TraceOperandRow[]): boolean {
+  return rows.some((row) => Boolean(row.termId || (row.ref && referenceTarget(row.ref))));
+}
+
+function stepHint(
+  inspection: InspectionState,
+  contract: ExperienceContract,
+  rows: TraceOperandRow[],
+): string {
+  if (canTouch(inspection, contract)) return "";
+  if (hasFollowableOperands(rows)) {
+    return "Follow a contributing value below to enter the computation.";
+  }
+  return "";
+}
+
 /**
  * trace + ask + follow + touch + release — in-world computational recipe lens.
  */
@@ -119,6 +135,7 @@ export function bindTraceInteraction(options: TraceInteractionOptions): TraceInt
       runtime.primaryRun.timeline.frames[editTarget.frameIndex]?.state[editTarget.field] ??
       value;
     const touchable = canTouch(inspection, contract);
+    const guide = stepHint(inspection, contract, rows);
 
     const path = navigation
       .map((item, index) => {
@@ -142,8 +159,9 @@ export function bindTraceInteraction(options: TraceInteractionOptions): TraceInt
           : "";
         const clickable = navigable || row.termId ? " is-clickable" : "";
         const kind = isConst ? " is-const" : isStateRow(row) ? " is-state" : "";
+        const followHint = navigable || row.termId ? " ↗" : "";
         return `<button type="button" class="micro-operand${clickable}${kind}" ${termAttrs} ${navAttrs}>
-          <span>${operandLabel(trace, row)}</span>
+          <span>${operandLabel(trace, row)}${followHint}</span>
           <strong>${fmt(row.value)}</strong>
         </button>`;
       })
@@ -152,24 +170,20 @@ export function bindTraceInteraction(options: TraceInteractionOptions): TraceInt
     const touchBlock = touchable
       ? touching
         ? `<div class="micro-touch open">
-            <label>${editTarget.field}(t=${editTarget.time.toFixed(2)}${unit})</label>
+            <label>Change ${editTarget.field} at t=${editTarget.time.toFixed(2)}${unit}</label>
             <input class="micro-touch-input" type="number" step="any" value="${editValue}">
             <div class="micro-touch-actions">
-              <button type="button" class="micro-btn micro-release">Release</button>
+              <button type="button" class="micro-btn micro-release">Release — reshape from here</button>
               <button type="button" class="micro-btn micro-cancel">Cancel</button>
             </div>
           </div>`
-        : `<button type="button" class="micro-touch-toggle">change ↳ ${editTarget.field} = ${fmt(editValue)}</button>`
+        : `<button type="button" class="micro-touch-toggle">Change ${editTarget.field} = ${fmt(editValue)}</button>`
       : "";
-
-    const startHint =
-      trace.initial && frameIndex === 0
-        ? `<p class="micro-hint">Starting state — scrub forward, then click the path to ask why.</p>`
-        : "";
 
     recipe.innerHTML = `
       <div class="micro-recipe">
-        ${startHint}
+        <div class="micro-recipe-kicker">Why here?</div>
+        ${guide ? `<p class="micro-hint">${guide}</p>` : ""}
         ${navigation.length > 1 ? `<nav class="micro-paths">${path}</nav>` : ""}
         <div class="micro-eq">${displayFormula(trace)}</div>
         <div class="micro-result">
@@ -182,7 +196,7 @@ export function bindTraceInteraction(options: TraceInteractionOptions): TraceInt
         </div>
         <div class="micro-operands">${operands}</div>
         ${touchBlock}
-        <button type="button" class="micro-close" aria-label="Return">return</button>
+        <button type="button" class="micro-close" aria-label="Close">close</button>
       </div>`;
 
     recipe.querySelectorAll<HTMLButtonElement>(".micro-operand.is-clickable").forEach((btn) => {
@@ -248,14 +262,12 @@ export function bindTraceInteraction(options: TraceInteractionOptions): TraceInt
       runtime.intervene({ frameIndex: editTarget.frameIndex, field: editTarget.field, value: next });
       draftValue = next;
       touching = false;
-      inspection = runtime.inspect(editTarget.frameIndex, editTarget.field, null, {
-        replace: true,
-        seek: true,
-      });
-      runtime.seekIndex(editTarget.frameIndex);
+      inspection = null;
+      runtime.clearInspection();
       anchor = null;
       renderRecipe();
-      positionRecipe();
+      options.onAnchor?.(null);
+      runtime.seekIndex(editTarget.frameIndex);
       runtime.play();
     });
 

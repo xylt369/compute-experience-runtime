@@ -12,7 +12,7 @@ export interface InteractionContext {
 
 export interface WorldInteractionElements {
   stage: HTMLElement;
-  stateReadout: HTMLElement;
+  stateReadout?: HTMLElement;
   parameters?: HTMLElement;
   recipe?: HTMLElement;
   restore?: HTMLButtonElement;

@@ -29,7 +29,7 @@ export function applyExperienceShell(
       contract.options?.intervention && composition.branchPanel
         ? "Pause · Fork · change one value · Continue"
         : composition.traceLens
-          ? "Click the path · ask why"
+          ? "Enter the computation"
           : contract.label;
   }
 

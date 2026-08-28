@@ -78,7 +78,7 @@ export function composeInteractions(
     const hint = bindWorldHint({
       runtime,
       hint: world.hint,
-      message: "Click the path · ask why",
+      message: "Click the path to ask why",
       enabled: true,
     });
     hintDismiss = hint.dismiss;

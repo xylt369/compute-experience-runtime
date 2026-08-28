@@ -1381,6 +1381,30 @@ body.mode-world .compile-strip {
   display: block !important;
 }
 
+body.mode-trace-lens .compile-strip,
+body.mode-trace-lens .top {
+  display: none !important;
+}
+
+body.mode-trace-lens .timeline-actions {
+  display: none !important;
+}
+
+body.mode-trace-lens .world-hint {
+  top: auto;
+  bottom: 92px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 10px 18px;
+}
+
+body.mode-trace-lens .world-restore {
+  top: auto;
+  bottom: 92px;
+  left: 16px;
+}
+
 body.mode-world .top {
   position: absolute;
   top: 52px;
@@ -1724,6 +1748,13 @@ body.mode-trace-lens .brand-block {
   box-shadow: var(--shadow);
 }
 
+.micro-recipe-kicker {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 560;
+  color: var(--text);
+}
+
 .micro-paths {
   display: flex;
   flex-wrap: wrap;
@@ -1853,12 +1884,13 @@ body.mode-trace-lens .brand-block {
 .micro-touch-toggle {
   width: 100%;
   margin-top: 10px;
-  padding: 8px 10px;
-  border: 1px dashed rgba(0, 122, 255, 0.28);
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 122, 255, 0.35);
   border-radius: 8px;
-  background: rgba(0, 122, 255, 0.03);
-  color: var(--soft);
-  font: 10px var(--font-mono);
+  background: rgba(0, 122, 255, 0.08);
+  color: #007aff;
+  font: 11px var(--font-mono);
+  font-weight: 500;
   cursor: pointer;
   text-align: left;
 }
@@ -1904,8 +1936,9 @@ body.mode-trace-lens .brand-block {
 }
 
 .micro-release {
-  border-color: rgba(255, 149, 0, 0.35);
-  color: #ff9500;
+  border-color: rgba(0, 122, 255, 0.35);
+  color: #007aff;
+  font-weight: 500;
 }
 
 .micro-close {

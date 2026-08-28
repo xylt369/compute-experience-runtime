@@ -65,6 +65,44 @@ describe("composeInteractions", () => {
     runtime.unmount();
   });
 
+  it("binds trace lens for Lorenz without branch panel or state readout chrome", () => {
+    const model = models["lorenz-attractor"]!;
+    const contract = resolveExperience(model);
+    const composition = composeExperience(contract);
+    expect(composition.traceLens).toBe(true);
+    expect(composition.branchPanel).toBe(false);
+    expect(composition.worldReadout).toBe(false);
+
+    const runtime = createRuntime({
+      model,
+      rendererRegistry: createRendererRegistry(),
+      parameters: defaultParameters(model),
+    });
+    runtime.rebuild();
+
+    const recipe = document.createElement("div");
+    const stage = document.createElement("div");
+    stage.getBoundingClientRect = () =>
+      ({ width: 800, height: 600, left: 0, top: 0, right: 800, bottom: 600 }) as DOMRect;
+
+    const handle = composeInteractions(runtime, {
+      contract,
+      composition,
+      world: { stage, stateReadout: document.createElement("div"), recipe, hint: document.createElement("div") },
+    });
+
+    expect(handle.trace).toBeDefined();
+    expect(handle.branch).toBeUndefined();
+    runtime.pause();
+    runtime.seekIndex(40);
+    handle.trace!.handleTrajectoryPick({ frameIndex: 40, screen: { x: 320, y: 240 } });
+    expect(recipe.querySelector(".micro-recipe-kicker")?.textContent).toBe("Why here?");
+    expect(recipe.querySelector(".micro-hint")?.textContent).toMatch(/Follow a contributing value/i);
+
+    handle.dispose();
+    runtime.unmount();
+  });
+
   it("binds branch panel for SIR from fork + compare capabilities", () => {
     const model = models["sir-epidemic"]!;
     const contract = resolveExperience(model);
