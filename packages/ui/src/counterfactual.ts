@@ -6,6 +6,8 @@ export interface CounterfactualElements {
   /** Container wrapping the scrub input (for fork marker positioning) */
   timeline: HTMLElement;
   scrub: HTMLInputElement;
+  /** Optional floating hint shown before the first fork (keeps chart unobstructed). */
+  hint?: HTMLElement;
   /** Optional divergence chip in the stage HUD area */
   divergence?: HTMLElement;
 }
@@ -172,6 +174,21 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
 
     elements.panel.replaceChildren();
 
+    if (!branch) {
+      elements.panel.hidden = true;
+      if (elements.hint) {
+        elements.hint.hidden = false;
+        elements.hint.textContent = "Pause, then Fork to explore a different future from the same past.";
+      }
+      return;
+    }
+
+    elements.panel.hidden = false;
+    if (elements.hint) {
+      elements.hint.hidden = true;
+      elements.hint.textContent = "";
+    }
+
     const tree = document.createElement("div");
     tree.className = "branch-tree";
     if (branch) {
@@ -189,15 +206,6 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
             <span class="branch-dot"></span>
             <span>COUNTERFACTUAL</span>
           </div>
-        </div>`;
-    } else {
-      tree.innerHTML = `
-        <div class="branch-diagram">
-          <div class="branch-node original">
-            <span class="branch-dot"></span>
-            <span>ORIGINAL</span>
-          </div>
-          <p class="branch-hint">Pause, then Fork to explore a different future from the same past.</p>
         </div>`;
     }
     elements.panel.appendChild(tree);

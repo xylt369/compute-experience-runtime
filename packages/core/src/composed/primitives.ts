@@ -1,5 +1,6 @@
 import type { ExplainStepContext, TraceReference, TraceTerm } from "../trace";
-import type { NodeEvaluation, PrimitiveId, PrimitivePorts, Wire } from "./types";
+import type { PrimitiveId, PrimitivePorts, Wire } from "./types";
+import { resolveWireValue } from "./wire-resolution";
 
 export interface TraceBuildContext {
   ctx: ExplainStepContext;
@@ -36,9 +37,19 @@ function wireLabel(wire: Wire, fallback: string): string {
   return fallback;
 }
 
-function operandFromWire(wire: Wire, term: TraceTerm, ctx: ExplainStepContext): TraceTerm {
+function operandFromWire(
+  wire: Wire,
+  term: TraceTerm,
+  ctx: ExplainStepContext,
+  location?: string,
+): TraceTerm {
   if (wire.kind === "state") {
-    const value = ctx.state[wire.field] ?? 0;
+    const value = resolveWireValue(wire, {
+      state: ctx.state,
+      parameters: ctx.parameters,
+      dt: ctx.dt,
+      location,
+    });
     return {
       id: `${wire.field}_prev`,
       label: wire.field,
@@ -49,7 +60,12 @@ function operandFromWire(wire: Wire, term: TraceTerm, ctx: ExplainStepContext): 
     };
   }
   if (wire.kind === "parameter") {
-    const value = Number(ctx.parameters[wire.id] ?? 0);
+    const value = resolveWireValue(wire, {
+      state: ctx.state,
+      parameters: ctx.parameters,
+      dt: ctx.dt,
+      location,
+    });
     return {
       id: wire.id,
       label: wire.id,
@@ -88,7 +104,7 @@ export const PRIMITIVE_REGISTRY: Record<PrimitiveId, PrimitiveDefinition> = {
       const signal = inputs.signal!;
       const coeff = inputs.coeff!;
       const coeffWire = inputWires.coeff!;
-      const coeffTerm = operandFromWire(coeffWire, coeff, ctx);
+      const coeffTerm = operandFromWire(coeffWire, coeff, ctx, `nodes/${nodeId}/inputs/coeff`);
       return {
         id: nodeId,
         label: label ?? `${wireLabel(coeffWire, "k")}·${signal.label}`,
@@ -184,8 +200,14 @@ export const PRIMITIVE_REGISTRY: Record<PrimitiveId, PrimitiveDefinition> = {
     traceTerm({ nodeId, label, inputs, inputWires, ctx }) {
       const stateWire = inputWires.state!;
       const rate = inputs.rate!;
-      const dtTerm = inputs.dt ?? operandFromWire({ kind: "dt" }, {} as TraceTerm, ctx);
-      const stateTerm = operandFromWire(stateWire, inputs.state!, ctx);
+      const dtTerm =
+        inputs.dt ?? operandFromWire({ kind: "dt" }, {} as TraceTerm, ctx, `nodes/${nodeId}/inputs/dt`);
+      const stateTerm = operandFromWire(
+        stateWire,
+        inputs.state!,
+        ctx,
+        `nodes/${nodeId}/inputs/state`,
+      );
       const field = stateWire.kind === "state" ? stateWire.field : stateTerm.label;
       return {
         id: nodeId,

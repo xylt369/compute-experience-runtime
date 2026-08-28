@@ -6,6 +6,7 @@ import {
   type ComputeRuntime,
   type ExperienceContract,
   type ExperienceSnapshot,
+  type ModelDefinition,
   downloadSnapshot,
   readSnapshotFile,
   readStoredSnapshot,
@@ -18,9 +19,19 @@ import {
   type ExperienceHandle,
 } from "@compute-experience/ui";
 import { models } from "../../examples";
+import {
+  applyCompileUiState,
+  compileConceptForPlayground,
+  compileUiStateFromResult,
+  compilingUiState,
+  createPlaygroundCompilerLLM,
+  readPlaygroundCompileEnv,
+} from "./compile-entry";
 import "./styles.css";
 
 const registry = createRendererRegistry();
+const compiledModels: Record<string, ModelDefinition> = {};
+const playgroundLlm = createPlaygroundCompilerLLM(readPlaygroundCompileEnv(import.meta.env));
 
 const els = {
   brandSub: document.querySelector<HTMLElement>("#brandSub")!,
@@ -28,6 +39,9 @@ const els = {
   sidebarEyebrow: document.querySelector<HTMLElement>("#sidebarEyebrow")!,
   fork: document.querySelector<HTMLButtonElement>("#fork")!,
   clearBranch: document.querySelector<HTMLButtonElement>("#clearBranch")!,
+  forkTimeline: document.querySelector<HTMLButtonElement>("#forkTimeline")!,
+  clearBranchTimeline: document.querySelector<HTMLButtonElement>("#clearBranchTimeline")!,
+  timelineActions: document.querySelector<HTMLElement>("#timelineActions")!,
   reset: document.querySelector<HTMLButtonElement>("#reset")!,
   save: document.querySelector<HTMLButtonElement>("#save")!,
   restore: document.querySelector<HTMLButtonElement>("#restore")!,
@@ -59,6 +73,11 @@ const els = {
   worldStateReadout: document.querySelector<HTMLElement>("#worldStateReadout")!,
   worldHint: document.querySelector<HTMLElement>("#worldHint")!,
   worldRestore: document.querySelector<HTMLButtonElement>("#worldRestore")!,
+  conceptInput: document.querySelector<HTMLInputElement>("#conceptInput")!,
+  compileBtn: document.querySelector<HTMLButtonElement>("#compileBtn")!,
+  compileStatus: document.querySelector<HTMLElement>("#compileStatus")!,
+  compileBadge: document.querySelector<HTMLElement>("#compileBadge")!,
+  compileDetail: document.querySelector<HTMLElement>("#compileDetail")!,
 };
 
 function resetWorldShell() {
@@ -77,6 +96,25 @@ function resetWorldShell() {
   els.divergence.replaceChildren();
   els.counterfactualPanel.replaceChildren();
   els.counterfactualPanel.hidden = true;
+}
+
+function resolveModel(modelId: string): ModelDefinition | undefined {
+  return models[modelId] ?? compiledModels[modelId];
+}
+
+function registerCompiledModel(model: ModelDefinition) {
+  compiledModels[model.manifest.id] = model;
+  const existing = els.modelSelect.querySelector(`option[value="${CSS.escape(model.manifest.id)}"]`);
+  const option =
+    existing instanceof HTMLOptionElement
+      ? existing
+      : (() => {
+          const created = document.createElement("option");
+          created.value = model.manifest.id;
+          els.modelSelect.appendChild(created);
+          return created;
+        })();
+  option.textContent = `${model.manifest.name} (compiled)`;
 }
 
 let currentId = Object.keys(models)[0]!;
@@ -112,10 +150,20 @@ function flash(button: HTMLButtonElement, label: string) {
 function syncBranchActions() {
   const hasBranch = (runtime?.comparisonRuns.length ?? 0) > 0;
   const canFork = contract?.capabilities.fork ?? false;
+  const forkLabel = hasBranch ? "Re-fork" : "Fork";
+
   els.clearBranch.disabled = !hasBranch;
-  els.fork.hidden = !canFork;
-  els.clearBranch.hidden = !canFork;
-  els.fork.textContent = hasBranch ? "Re-fork" : "Fork";
+  els.clearBranchTimeline.disabled = !hasBranch;
+
+  for (const button of [els.fork, els.forkTimeline]) {
+    button.hidden = !canFork;
+    button.textContent = forkLabel;
+  }
+  for (const button of [els.clearBranch, els.clearBranchTimeline]) {
+    button.hidden = !canFork;
+  }
+
+  els.timelineActions.hidden = !canFork;
 }
 
 function syncManifestChrome(exp: ExperienceContract) {
@@ -127,13 +175,10 @@ function syncManifestChrome(exp: ExperienceContract) {
   els.drawerToggle.hidden = !composition.manifestPanel;
 }
 
-function attachRuntime(modelId: string, options?: { params?: Record<string, number>; snapshot?: ExperienceSnapshot }) {
-  const model = models[modelId];
-  if (!model) throw new Error(`Unknown model: ${modelId}`);
-
+function attachModel(model: ModelDefinition, options?: { params?: Record<string, number>; snapshot?: ExperienceSnapshot }) {
   experience?.dispose();
   resetWorldShell();
-  currentId = modelId;
+  currentId = model.manifest.id;
   contract = resolveExperience(model);
 
   applyExperienceShell(contract, {
@@ -182,6 +227,7 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
             timeline: els.timelineShell.querySelector(".scrub-wrap")!,
             scrub: els.scrub,
             divergence: els.divergence,
+            hint: composition.worldShell ? els.worldHint : undefined,
           }
         : undefined,
       stateCount: composition.worldShell ? undefined : els.stateCount,
@@ -200,7 +246,7 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
     }
   });
 
-  els.modelSelect.value = modelId;
+  els.modelSelect.value = currentId;
   syncBranchActions();
 
   if (options?.snapshot) {
@@ -215,6 +261,43 @@ function attachRuntime(modelId: string, options?: { params?: Record<string, numb
   }
 }
 
+function attachRuntime(modelId: string, options?: { params?: Record<string, number>; snapshot?: ExperienceSnapshot }) {
+  const model = resolveModel(modelId);
+  if (!model) throw new Error(`Unknown model: ${modelId}`);
+  attachModel(model, options);
+}
+
+let compileGeneration = 0;
+
+async function compileAndExplore() {
+  const concept = els.conceptInput.value;
+  const generation = ++compileGeneration;
+  applyCompileUiState(compilingUiState(), {
+    statusRoot: els.compileStatus,
+    badge: els.compileBadge,
+    detail: els.compileDetail,
+    submit: els.compileBtn,
+    input: els.conceptInput,
+  });
+
+  const result = await compileConceptForPlayground(concept, playgroundLlm);
+  if (generation !== compileGeneration) return;
+
+  applyCompileUiState(compileUiStateFromResult(result), {
+    statusRoot: els.compileStatus,
+    badge: els.compileBadge,
+    detail: els.compileDetail,
+    submit: els.compileBtn,
+    input: els.conceptInput,
+  });
+
+  if (!result.model) return;
+
+  registerCompiledModel(result.model);
+  setDrawer(false);
+  attachModel(result.model);
+}
+
 for (const model of Object.values(models)) {
   const option = document.createElement("option");
   option.value = model.manifest.id;
@@ -226,8 +309,16 @@ els.modelSelect.addEventListener("change", () => {
   setDrawer(false);
   attachRuntime(els.modelSelect.value);
 });
-els.reset.addEventListener("click", () => attachRuntime(currentId));
-els.fork.addEventListener("click", () => {
+els.compileBtn.addEventListener("click", () => {
+  void compileAndExplore();
+});
+els.conceptInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void compileAndExplore();
+  }
+});
+function handleFork() {
   if (!runtime || !contract?.capabilities.fork) return;
   runtime.pause();
   const index = runtime.currentIndex();
@@ -235,13 +326,22 @@ els.fork.addEventListener("click", () => {
   applyForkIntervention();
   runtime.setSyncPlayback(true);
   syncBranchActions();
-  flash(els.fork, "Forked");
-});
-els.clearBranch.addEventListener("click", () => {
+  experience?.sync();
+  flash(els.forkTimeline, "Forked");
+}
+
+function handleClearBranch() {
   runtime?.clearBranches();
   syncBranchActions();
-  flash(els.clearBranch, "Cleared");
-});
+  experience?.sync();
+  flash(els.clearBranchTimeline, "Cleared");
+}
+
+els.reset.addEventListener("click", () => attachRuntime(currentId));
+els.fork.addEventListener("click", handleFork);
+els.forkTimeline.addEventListener("click", handleFork);
+els.clearBranch.addEventListener("click", handleClearBranch);
+els.clearBranchTimeline.addEventListener("click", handleClearBranch);
 els.save.addEventListener("click", () => {
   if (!runtime) return;
   writeStoredSnapshot(runtime.snapshot(false));
@@ -253,7 +353,7 @@ els.restore.addEventListener("click", () => {
     flash(els.restore, "Empty");
     return;
   }
-  if (!models[stored.model]) {
+  if (!resolveModel(stored.model)) {
     flash(els.restore, "Invalid");
     return;
   }
@@ -271,7 +371,7 @@ els.importFile.addEventListener("change", async () => {
   if (!file) return;
   try {
     const snapshot = await readSnapshotFile(file);
-    if (!models[snapshot.model]) throw new Error("unknown model");
+    if (!resolveModel(snapshot.model)) throw new Error("unknown model");
     attachRuntime(snapshot.model, { snapshot });
     flash(els.importBtn, "Loaded");
   } catch {
@@ -297,7 +397,7 @@ window.addEventListener("keydown", (event) => {
   if (editing) return;
   if (event.code === "KeyF" && contract?.capabilities.fork) {
     event.preventDefault();
-    els.fork.click();
+    handleFork();
     return;
   }
   if (event.code === "ArrowLeft") {

@@ -29,6 +29,25 @@
         <input id="importFile" type="file" accept="application/json" hidden />
       </div>
     </header>
+    <section class="compile-strip" id="compileStrip" aria-label="Explore a concept">
+      <div class="compile-entry compile-entry--strip" id="compileEntry">
+        <label class="compile-label" for="conceptInput">What do you want to explore?</label>
+        <div class="compile-row">
+          <input
+            class="compile-input"
+            id="conceptInput"
+            type="text"
+            placeholder="simple epidemic with quarantine"
+            autocomplete="off"
+          />
+          <button class="control control-accent compile-submit" id="compileBtn" type="button">Explore</button>
+        </div>
+        <div class="compile-status" id="compileStatus" hidden>
+          <span class="compile-badge" id="compileBadge"></span>
+          <p class="compile-detail" id="compileDetail"></p>
+        </div>
+      </div>
+    </section>
     <div class="drawer-backdrop" id="drawerBackdrop"></div>
     <div class="layout">
       <aside class="sidebar" id="sidebar">
@@ -67,6 +86,10 @@
           <div class="inspector-lens" id="inspectorLens" hidden></div>
           <div class="timeline-shell" id="timelineShell">
             <button class="play-btn" id="play" type="button" aria-label="Play">▶</button>
+            <div class="timeline-actions" id="timelineActions" hidden>
+              <button class="control control-accent timeline-fork" id="forkTimeline" type="button">Fork</button>
+              <button class="control control-ghost timeline-clear" id="clearBranchTimeline" type="button">Clear</button>
+            </div>
             <div class="scrub-wrap">
               <div class="scrub-track"></div>
               <input class="scrub" id="scrub" type="range" min="0" max="0" step="1" value="0">

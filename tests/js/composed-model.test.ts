@@ -2,14 +2,18 @@ import Ajv2020 from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 import {
   createComposedExecutor,
+  createSirComposedModelDefinition,
   explainField,
   findTraceTerm,
   lorenzComposedModel,
   referenceTarget,
   simulate,
+  sirComposedModel,
   validateComposedModel,
+  WireResolutionError,
 } from "@compute-experience/core";
 import { lorenz } from "../../examples/lorenz";
+import { sir } from "../../examples/sir";
 import composedSchema from "../../packages/core/src/composed/schema.json";
 
 const PARAMS = { sigma: 10, rho: 28, beta: 8 / 3 };
@@ -19,6 +23,10 @@ const validateSchema = ajv.compile(composedSchema);
 describe("composed model schema", () => {
   it("validates the Lorenz composed graph against JSON schema", () => {
     expect(validateSchema(lorenzComposedModel)).toBe(true);
+  });
+
+  it("validates the SIR composed graph against JSON schema", () => {
+    expect(validateSchema(sirComposedModel)).toBe(true);
   });
 });
 
@@ -154,6 +162,155 @@ describe("composed Lorenz executor", () => {
     expect(composedNext.x).toBeCloseTo(handNext.x, 12);
     expect(composedNext.y).toBeCloseTo(handNext.y, 12);
     expect(composedNext.z).toBeCloseTo(handNext.z, 12);
+  });
+});
+
+const SIR_PARAM_SETS = [
+  {
+    population: 1000,
+    contactRate: 0.55,
+    recoveryRate: 0.12,
+    initialInfected: 10,
+    interventionStartDay: 20,
+    interventionFactor: 0.45,
+  },
+  {
+    population: 1000,
+    contactRate: 0.35,
+    recoveryRate: 0.12,
+    initialInfected: 10,
+    interventionStartDay: 20,
+    interventionFactor: 0.45,
+  },
+  {
+    population: 1000,
+    contactRate: 1.2,
+    recoveryRate: 0.12,
+    initialInfected: 10,
+    interventionStartDay: 20,
+    interventionFactor: 0.45,
+  },
+  {
+    population: 500,
+    contactRate: 0.8,
+    recoveryRate: 0.25,
+    initialInfected: 5,
+    interventionStartDay: 5,
+    interventionFactor: 0.6,
+  },
+  {
+    population: 2000,
+    contactRate: 0.45,
+    recoveryRate: 0.08,
+    initialInfected: 20,
+    interventionStartDay: 999,
+    interventionFactor: 0.3,
+  },
+] as const;
+
+const SIR_STEP_COUNTS = [100, 500, 900] as const;
+
+describe("composed SIR executor", () => {
+  const composedSir = createSirComposedModelDefinition();
+
+  it("accepts the SIR graph with flux nodes before integrators", () => {
+    const result = validateComposedModel(sirComposedModel);
+    expect(result.ok).toBe(true);
+    expect(result.order!.indexOf("infection_flux")).toBeLessThan(result.order!.indexOf("dI_rate"));
+    expect(result.order!.indexOf("recovery_flux")).toBeLessThan(result.order!.indexOf("dI_rate"));
+    expect(result.order!.indexOf("dI_rate")).toBeLessThan(result.order!.indexOf("i_next"));
+  });
+
+  it.each(SIR_PARAM_SETS)("matches hand-written SIR for parameters %#", (params) => {
+    const handFrames = simulate(sir, params);
+    const composedFrames = simulate(composedSir, params);
+    expect(composedFrames.length).toBe(handFrames.length);
+    for (let i = 0; i < handFrames.length; i += 1) {
+      for (const key of ["susceptible", "infected", "recovered"] as const) {
+        expect(composedFrames[i]!.state[key]).toBeCloseTo(handFrames[i]!.state[key], 10);
+      }
+    }
+  });
+
+  it.each(SIR_STEP_COUNTS)("matches hand-written SIR for %i steps", (steps) => {
+    const params = SIR_PARAM_SETS[0]!;
+    const handFrames = simulate(sir, params, { steps });
+    const composedFrames = simulate(composedSir, params, { steps });
+    expect(composedFrames.length).toBe(handFrames.length);
+    for (let i = 0; i < handFrames.length; i += 1) {
+      for (const key of ["susceptible", "infected", "recovered"] as const) {
+        expect(composedFrames[i]!.state[key]).toBeCloseTo(handFrames[i]!.state[key], 10);
+      }
+    }
+  });
+
+  it("exposes infection and recovery fluxes with integrator fan-in on infected", () => {
+    const params = SIR_PARAM_SETS[0]!;
+    const frames = simulate(composedSir, params);
+    const frameIndex = 80;
+    const trace = explainField(composedSir, frames, frameIndex, "infected", params)!;
+
+    const infectionFlux = findTraceTerm(trace.result, "infection_flux");
+    const recoveryFlux = findTraceTerm(trace.result, "recovery_flux");
+    const dIRate = findTraceTerm(trace.result, "dI_rate");
+
+    expect(infectionFlux?.label).toBe("β·S·I/N");
+    expect(recoveryFlux?.label).toBe("γ·I");
+    expect(dIRate?.label).toBe("β·S·I/N − γ·I");
+    expect(dIRate?.children?.map((c) => c.id)).toEqual(
+      expect.arrayContaining(["infection_flux", "recovery_flux"]),
+    );
+
+    const integrateTerm = findTraceTerm(trace.result, "i_next");
+    expect(integrateTerm?.children?.some((c) => c.id === "dI_rate")).toBe(true);
+  });
+
+  it("routes recovery flux directly into the recovered integrator", () => {
+    const params = SIR_PARAM_SETS[0]!;
+    const frames = simulate(composedSir, params);
+    const trace = explainField(composedSir, frames, 80, "recovered", params)!;
+    const recoveryFlux = findTraceTerm(trace.result, "recovery_flux");
+    expect(recoveryFlux?.label).toBe("γ·I");
+    expect(findTraceTerm(trace.result, "r_next")?.children?.some((c) => c.id === "recovery_flux")).toBe(
+      true,
+    );
+  });
+});
+
+describe("wire resolution", () => {
+  const lorenzExecutor = createComposedExecutor(lorenzComposedModel);
+
+  it("throws MISSING_STATE instead of silently using 0", () => {
+    expect(() =>
+      lorenzExecutor.step({ y: 1, z: 1 }, PARAMS, 0.01),
+    ).toThrow(WireResolutionError);
+    try {
+      lorenzExecutor.step({ y: 1, z: 1 }, PARAMS, 0.01);
+    } catch (error) {
+      expect(error).toBeInstanceOf(WireResolutionError);
+      expect((error as WireResolutionError).code).toBe("MISSING_STATE");
+      expect((error as WireResolutionError).path).toBe("state/x");
+    }
+  });
+
+  it("throws MISSING_PARAMETER instead of silently using 0", () => {
+    expect(() =>
+      lorenzExecutor.step({ x: 1, y: 1, z: 1 }, { rho: 28, beta: 8 / 3 }, 0.01),
+    ).toThrow(WireResolutionError);
+    try {
+      lorenzExecutor.step({ x: 1, y: 1, z: 1 }, { rho: 28, beta: 8 / 3 }, 0.01);
+    } catch (error) {
+      expect((error as WireResolutionError).code).toBe("MISSING_PARAMETER");
+      expect((error as WireResolutionError).path).toBe("parameter/sigma");
+    }
+  });
+
+  it("throws MISSING_PARAMETER when explain trace resolves parameters strictly", () => {
+    const composedModel = lorenzExecutor.toModelDefinition({ renderer: "trajectory-3d" });
+    const frames = simulate(lorenz, PARAMS);
+    expect(() =>
+      explainField(composedModel, frames, 42, "x", { rho: 28, beta: 8 / 3 }),
+    ).toThrow(WireResolutionError);
   });
 });
 

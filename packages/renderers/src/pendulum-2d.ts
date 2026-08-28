@@ -214,9 +214,10 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
     const view = this.view;
     const layout = this.layout();
     if (!ctx || !view || !layout) return;
-    ctx.clearRect(0, 0, layout.width, layout.height);
+    ctx.fillStyle = "#f5f5f7";
+    ctx.fillRect(0, 0, layout.width, layout.height);
 
-    ctx.strokeStyle = "rgba(88, 99, 110, 0.45)";
+    ctx.strokeStyle = "rgba(60, 60, 67, 0.28)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(layout.pivot.x - 28, layout.pivot.y);
@@ -233,7 +234,7 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
         if (i === 0) ctx.moveTo(bob.x, bob.y);
         else ctx.lineTo(bob.x, bob.y);
       }
-      ctx.strokeStyle = "rgba(232, 237, 241, 0.22)";
+      ctx.strokeStyle = "rgba(0, 122, 255, 0.28)";
       ctx.lineWidth = 2;
       ctx.stroke();
 
@@ -241,7 +242,7 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
       const first = slice[0].state.angle;
       const last = this.currentAngle();
       ctx.arc(layout.pivot.x, layout.pivot.y, layout.px, Math.PI / 2 - first, Math.PI / 2 - last, last > first);
-      ctx.strokeStyle = "rgba(174, 183, 191, 0.28)";
+      ctx.strokeStyle = "rgba(142, 142, 147, 0.35)";
       ctx.lineWidth = 1.4;
       ctx.stroke();
     }
@@ -251,21 +252,21 @@ export class Pendulum2DRenderer implements RuntimeRenderer {
     ctx.beginPath();
     ctx.moveTo(layout.pivot.x, layout.pivot.y);
     ctx.lineTo(bob.x, bob.y);
-    ctx.strokeStyle = "#d8dee4";
+    ctx.strokeStyle = "#3a3a3c";
     ctx.lineWidth = 2.2;
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.fillStyle = "#9aa3ab";
+    ctx.fillStyle = "#636366";
     ctx.arc(layout.pivot.x, layout.pivot.y, 4, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.beginPath();
-    ctx.fillStyle = "rgba(247, 249, 250, 0.16)";
+    ctx.fillStyle = "rgba(0, 122, 255, 0.12)";
     ctx.arc(bob.x, bob.y, 16, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.fillStyle = "#f2f5f7";
+    ctx.fillStyle = "#007aff";
     ctx.arc(bob.x, bob.y, 9, 0, Math.PI * 2);
     ctx.fill();
   }

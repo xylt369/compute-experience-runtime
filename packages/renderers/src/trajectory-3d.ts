@@ -11,9 +11,11 @@ type Camera = { rx: number; ry: number; zoom: number };
 type Point2D = { x: number; y: number };
 
 const DEFAULT_CAMERA: Camera = { rx: -0.72, ry: 0.72, zoom: 1 };
-const PRIMARY_RGB = "232, 237, 241";
-const BRANCH_RGB = "210, 156, 92";
-const SHARED_RGB = "180, 188, 196";
+const CANVAS_BG = "#f5f5f7";
+const PRIMARY_RGB = "0, 122, 255";
+const BRANCH_RGB = "255, 149, 0";
+const SHARED_RGB = "142, 142, 147";
+const ACCENT_RGB = "255, 149, 0";
 
 export class Trajectory3DRenderer implements RuntimeRenderer {
   readonly id = "trajectory-3d";
@@ -348,7 +350,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
       const b = projected[i]!;
       const age = i / (projected.length - 1);
       const depth = 0.35 + 0.65 * (0.5 + 0.5 * Math.tanh(b.z * 1.6));
-      ctx.strokeStyle = `rgba(${rgb}, ${(0.12 + 0.78 * age) * depth * alphaScale})`;
+      ctx.strokeStyle = `rgba(${rgb}, ${(0.22 + 0.72 * age) * depth * alphaScale})`;
       ctx.lineWidth = 1.15 + 0.7 * age;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
@@ -411,7 +413,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
 
     if (forkPoint) {
       ctx.beginPath();
-      ctx.strokeStyle = "rgba(180, 188, 196, 0.8)";
+      ctx.strokeStyle = "rgba(142, 142, 147, 0.85)";
       ctx.lineWidth = 1.2;
       ctx.arc(forkPoint.x, forkPoint.y, 5, 0, Math.PI * 2);
       ctx.stroke();
@@ -423,7 +425,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
       if (divFrame) {
         const divPoint = this.project(divFrame.state as { x: number; y: number; z: number }, width, height);
         ctx.beginPath();
-        ctx.strokeStyle = "rgba(210, 156, 92, 0.85)";
+        ctx.strokeStyle = "rgba(255, 149, 0, 0.85)";
         ctx.lineWidth = 1.5;
         ctx.arc(divPoint.x, divPoint.y, 7, 0, Math.PI * 2);
         ctx.stroke();
@@ -433,7 +435,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     if (primaryHead && branchHead && cursor > forkIndex) {
       ctx.beginPath();
       ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = "rgba(210, 156, 92, 0.45)";
+      ctx.strokeStyle = "rgba(255, 149, 0, 0.45)";
       ctx.lineWidth = 1;
       ctx.moveTo(primaryHead.x, primaryHead.y);
       ctx.lineTo(branchHead.x, branchHead.y);
@@ -459,7 +461,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     const point = this.project(state, width, height);
 
     ctx.beginPath();
-    ctx.strokeStyle = "rgba(210, 156, 92, 0.35)";
+    ctx.strokeStyle = `rgba(${ACCENT_RGB}, 0.35)`;
     ctx.lineWidth = 1;
     ctx.moveTo(point.x - 14, point.y);
     ctx.lineTo(point.x + 14, point.y);
@@ -468,15 +470,15 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.strokeStyle = "rgba(210, 156, 92, 0.92)";
+    ctx.strokeStyle = `rgba(${ACCENT_RGB}, 0.92)`;
     ctx.lineWidth = 1.4;
     ctx.arc(point.x, point.y, 7, 0, Math.PI * 2);
     ctx.stroke();
     ctx.beginPath();
-    ctx.fillStyle = "rgba(210, 156, 92, 0.16)";
+    ctx.fillStyle = `rgba(${ACCENT_RGB}, 0.14)`;
     ctx.arc(point.x, point.y, 12, 0, Math.PI * 2);
     ctx.fill();
-    this.drawDot(ctx, point, "210, 156, 92", 3.8);
+    this.drawDot(ctx, point, ACCENT_RGB, 3.8);
     this.onInspectionAnchor?.(point);
     return point;
   }
@@ -508,11 +510,11 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
       const alpha = isCurrent ? 0.95 : isPrevious ? 0.45 : 0.18;
       const radius = isCurrent ? 4.2 : isPrevious ? 3 : 2.2;
       ctx.beginPath();
-      ctx.strokeStyle = `rgba(210, 156, 92, ${alpha})`;
+      ctx.strokeStyle = `rgba(${ACCENT_RGB}, ${alpha})`;
       ctx.lineWidth = isCurrent ? 1.4 : 1;
       ctx.arc(point.x, point.y, radius + 3, 0, Math.PI * 2);
       ctx.stroke();
-      if (isCurrent) this.drawDot(ctx, point, "210, 156, 92", 3.4);
+      if (isCurrent) this.drawDot(ctx, point, ACCENT_RGB, 3.4);
     });
   }
 
@@ -533,7 +535,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     ctx.beginPath();
     ctx.setLineDash([4, 6]);
     ctx.lineWidth = 1.1;
-    ctx.strokeStyle = `rgba(210, 156, 92, ${0.12 + 0.22 * (1 - depth)})`;
+    ctx.strokeStyle = `rgba(${ACCENT_RGB}, ${0.12 + 0.22 * (1 - depth)})`;
     ctx.moveTo(projected[0]!.x, projected[0]!.y);
     for (let i = 1; i < projected.length; i += 1) {
       ctx.lineTo(projected[i]!.x, projected[i]!.y);
@@ -553,7 +555,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     if (!frame) return;
     const point = this.project(frame.state as { x: number; y: number; z: number }, width, height);
     ctx.beginPath();
-    ctx.strokeStyle = "rgba(232, 237, 241, 0.28)";
+    ctx.strokeStyle = "rgba(0, 122, 255, 0.28)";
     ctx.lineWidth = 1;
     ctx.moveTo(point.x - 10, point.y);
     ctx.lineTo(point.x + 10, point.y);
@@ -561,7 +563,7 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     ctx.lineTo(point.x, point.y + 10);
     ctx.stroke();
     ctx.beginPath();
-    ctx.strokeStyle = "rgba(232, 237, 241, 0.55)";
+    ctx.strokeStyle = "rgba(0, 122, 255, 0.55)";
     ctx.lineWidth = 1.1;
     ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
     ctx.stroke();
@@ -656,12 +658,12 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
       );
       const pulse = 0.45 + 0.55 * this.reshapePulse;
       ctx.beginPath();
-      ctx.strokeStyle = `rgba(210, 156, 92, ${0.5 + 0.45 * pulse})`;
+      ctx.strokeStyle = `rgba(${ACCENT_RGB}, ${0.5 + 0.45 * pulse})`;
       ctx.lineWidth = 1.4;
       ctx.arc(seamPoint.x, seamPoint.y, 5 + 2 * pulse, 0, Math.PI * 2);
       ctx.stroke();
       ctx.beginPath();
-      ctx.fillStyle = `rgba(210, 156, 92, ${0.08 + 0.12 * pulse})`;
+      ctx.fillStyle = `rgba(${ACCENT_RGB}, ${0.08 + 0.12 * pulse})`;
       ctx.arc(seamPoint.x, seamPoint.y, 10, 0, Math.PI * 2);
       ctx.fill();
     }
@@ -684,7 +686,8 @@ export class Trajectory3DRenderer implements RuntimeRenderer {
     if (!ctx || !view) return;
     const width = this.target?.clientWidth ?? 0;
     const height = this.target?.clientHeight ?? 0;
-    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = CANVAS_BG;
+    ctx.fillRect(0, 0, width, height);
 
     const primary = view.primaryRun ?? {
       id: "primary",

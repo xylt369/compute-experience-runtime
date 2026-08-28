@@ -3,31 +3,9 @@ import type { ComputationTrace, ExplainStepContext, TraceTerm } from "../trace";
 import { getPrimitive } from "./primitives";
 import type { ComposedModel, NodeEvaluation, Wire } from "./types";
 import { validateComposedModel } from "./validator";
+import { resolveWireValue } from "./wire-resolution";
 
 type ExplainResult = Omit<ComputationTrace, "inputFrameIndex" | "inputTime">;
-
-function resolveWireValue(
-  wire: Wire,
-  state: Record<string, number>,
-  parameters: Record<string, unknown>,
-  dt: number,
-  nodeValues: Map<string, NodeEvaluation>,
-): number {
-  switch (wire.kind) {
-    case "state":
-      return state[wire.field] ?? 0;
-    case "parameter":
-      return Number(parameters[wire.id] ?? 0);
-    case "constant":
-      return wire.value;
-    case "dt":
-      return dt;
-    case "node":
-      return nodeValues.get(wire.nodeId)?.value ?? NaN;
-    default:
-      return NaN;
-  }
-}
 
 function evaluateNodes(
   model: ComposedModel,
@@ -44,7 +22,13 @@ function evaluateNodes(
     const def = getPrimitive(node.primitive);
     const inputNums: Record<string, number> = {};
     for (const [port, wire] of Object.entries(node.inputs)) {
-      inputNums[port] = resolveWireValue(wire, state, parameters, dt, values);
+      inputNums[port] = resolveWireValue(wire, {
+        state,
+        parameters,
+        dt,
+        nodeValues: values,
+        location: `nodes/${nodeId}/inputs/${port}`,
+      });
     }
     values.set(nodeId, {
       value: def.evaluate(inputNums),
@@ -56,8 +40,15 @@ function evaluateNodes(
 }
 
 function leafTraceTerm(wire: Wire, ctx: ExplainStepContext, nodeId: string, port: string): TraceTerm {
+  const location = `nodes/${nodeId}/inputs/${port}`;
+
   if (wire.kind === "state") {
-    const value = ctx.state[wire.field] ?? 0;
+    const value = resolveWireValue(wire, {
+      state: ctx.state,
+      parameters: ctx.parameters,
+      dt: ctx.dt,
+      location,
+    });
     return {
       id: `${wire.field}_prev`,
       label: wire.field,
@@ -77,7 +68,12 @@ function leafTraceTerm(wire: Wire, ctx: ExplainStepContext, nodeId: string, port
     };
   }
   if (wire.kind === "parameter") {
-    const value = Number(ctx.parameters[wire.id] ?? 0);
+    const value = resolveWireValue(wire, {
+      state: ctx.state,
+      parameters: ctx.parameters,
+      dt: ctx.dt,
+      location,
+    });
     const label = wire.id;
     return {
       id: wire.id,

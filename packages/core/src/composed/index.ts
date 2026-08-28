@@ -33,5 +33,10 @@ export { createComposedExecutor } from "./executor";
 export type { ComposedExecutor } from "./executor";
 
 export { lorenzComposedModel } from "./lorenz-composed";
+export { createSirComposedModelDefinition, sirComposedModel, wrapSirComposedModel, SIR_EPIDEMIC_EXPERIENCE } from "./sir-composed";
+export type { SirModelManifestExtras } from "./sir-composed";
+
+export { WireResolutionError, resolveWireValue } from "./wire-resolution";
+export type { WireResolutionContext } from "./wire-resolution";
 
 export { default as composedModelSchema } from "./schema.json";

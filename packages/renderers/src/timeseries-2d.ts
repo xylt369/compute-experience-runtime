@@ -7,10 +7,11 @@ import type {
   RuntimeRenderer,
 } from "@compute-experience/core";
 
-const PALETTE = ["#8aa4b0", "#f2d0c6", "#9aa48c", "#c5ccd3"];
-const PRIMARY_RGB = "232, 237, 241";
-const BRANCH_RGB = "210, 156, 92";
-const SHARED_RGB = "180, 188, 196";
+const CANVAS_BG = "#f5f5f7";
+const PALETTE = ["#007aff", "#ff9500", "#34c759", "#af52de"];
+const PRIMARY_RGB = "0, 122, 255";
+const BRANCH_RGB = "255, 149, 0";
+const SHARED_RGB = "142, 142, 147";
 const HIGHLIGHT_KEY = "infected";
 
 function formatValue(key: string, value: number): string {
@@ -176,7 +177,7 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
 
   private drawAxes(ctx: CanvasRenderingContext2D, layout: NonNullable<ReturnType<typeof this.layout>>) {
     const { pad, innerW, innerH, maxY, t0, t1 } = layout;
-    ctx.strokeStyle = "rgba(32, 38, 45, 0.9)";
+    ctx.strokeStyle = "rgba(60, 60, 67, 0.18)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(pad.l, pad.t);
@@ -184,27 +185,27 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
     ctx.lineTo(pad.l + innerW, pad.t + innerH);
     ctx.stroke();
 
-    ctx.fillStyle = "#5f6972";
+    ctx.fillStyle = "#636366";
     ctx.font = "10px ui-monospace, SFMono-Regular, Consolas, monospace";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     for (let i = 0; i <= 4; i += 1) {
       const y = pad.t + innerH - (innerH * i) / 4;
       const value = (maxY * i) / 4;
-      ctx.fillStyle = "rgba(95, 105, 114, 0.35)";
+      ctx.fillStyle = "rgba(60, 60, 67, 0.08)";
       ctx.beginPath();
       ctx.moveTo(pad.l, y);
       ctx.lineTo(pad.l + innerW, y);
-      ctx.strokeStyle = "rgba(32, 38, 45, 0.55)";
+      ctx.strokeStyle = "rgba(60, 60, 67, 0.12)";
       ctx.stroke();
-      ctx.fillStyle = "#5f6972";
+      ctx.fillStyle = "#636366";
       ctx.fillText(value >= 100 ? value.toFixed(0) : value.toFixed(1), pad.l - 8, y);
     }
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.fillText(`${t0.toFixed(0)}`, pad.l, pad.t + innerH + 10);
     ctx.fillText(`${t1.toFixed(0)}`, pad.l + innerW, pad.t + innerH + 10);
-    ctx.fillStyle = "#667079";
+    ctx.fillStyle = "#8e8e93";
     ctx.fillText("t", pad.l + innerW / 2, pad.t + innerH + 24);
   }
 
@@ -293,7 +294,7 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
     if (forkFrame) {
       const x = xOf(forkFrame.t);
       ctx.beginPath();
-      ctx.strokeStyle = "rgba(180, 188, 196, 0.85)";
+      ctx.strokeStyle = "rgba(142, 142, 147, 0.85)";
       ctx.lineWidth = 1.2;
       ctx.setLineDash([3, 4]);
       ctx.moveTo(x, pad.t);
@@ -320,7 +321,7 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
         const x = xOf(divFrame.t);
         const y = yOf(divFrame.state[HIGHLIGHT_KEY] ?? 0);
         ctx.beginPath();
-        ctx.strokeStyle = "rgba(210, 156, 92, 0.85)";
+        ctx.strokeStyle = "rgba(255, 149, 0, 0.85)";
         ctx.lineWidth = 1.5;
         ctx.arc(x, y, 7, 0, Math.PI * 2);
         ctx.stroke();
@@ -335,7 +336,7 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
       const yBranch = yOf(branchHead.state[HIGHLIGHT_KEY] ?? 0);
       ctx.beginPath();
       ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = "rgba(210, 156, 92, 0.45)";
+      ctx.strokeStyle = "rgba(255, 149, 0, 0.45)";
       ctx.lineWidth = 1;
       ctx.moveTo(x, yPrimary);
       ctx.lineTo(x, yBranch);
@@ -384,7 +385,7 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
     if (head) {
       const x = xOf(head.t);
       ctx.beginPath();
-      ctx.strokeStyle = "rgba(242, 245, 247, 0.55)";
+      ctx.strokeStyle = "rgba(0, 122, 255, 0.35)";
       ctx.setLineDash([3, 4]);
       ctx.moveTo(x, layout.pad.t);
       ctx.lineTo(x, layout.pad.t + layout.innerH);
@@ -404,7 +405,8 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
     const layout = this.layout();
     if (!ctx || !layout || !this.view) return;
 
-    ctx.clearRect(0, 0, layout.width, layout.height);
+    ctx.fillStyle = CANVAS_BG;
+    ctx.fillRect(0, 0, layout.width, layout.height);
     this.drawAxes(ctx, layout);
 
     const primary =
