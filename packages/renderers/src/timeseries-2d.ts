@@ -254,7 +254,6 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
     for (const key of keys) {
       const isHighlight = key === HIGHLIGHT_KEY;
       const sharedAlpha = isHighlight ? 0.95 : 0.55;
-      const mutedAlpha = isHighlight ? 0.85 : 0.35;
       this.drawSeriesSegment(
         ctx,
         primary.frames,
@@ -274,8 +273,8 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
           forkIndex + 1,
           cursor,
           layout,
-          `rgba(${PRIMARY_RGB}, ${mutedAlpha})`,
-          isHighlight ? 2.1 : 1.3,
+          `rgba(${PRIMARY_RGB}, ${isHighlight ? 0.14 : 0.08})`,
+          isHighlight ? 1.4 : 1,
         );
         this.drawSeriesSegment(
           ctx,
@@ -284,8 +283,8 @@ export class Timeseries2DRenderer implements RuntimeRenderer {
           forkIndex + 1,
           cursor,
           layout,
-          `rgba(${BRANCH_RGB}, ${mutedAlpha})`,
-          isHighlight ? 2.1 : 1.3,
+          `rgba(${BRANCH_RGB}, ${isHighlight ? 0.95 : 0.62})`,
+          isHighlight ? 2.4 : 1.6,
         );
       }
     }

@@ -27,7 +27,7 @@ export function applyExperienceShell(
   if (elements.brandSub) {
     elements.brandSub.textContent =
       contract.options?.intervention && composition.branchPanel
-        ? "Pause · Fork · change the future"
+        ? "Pause · Fork · change one value · Continue"
         : composition.traceLens
           ? "Click the path · ask why"
           : contract.label;

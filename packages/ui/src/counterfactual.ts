@@ -45,6 +45,10 @@ export interface CounterfactualHandle {
   sync(): void;
   applyIntervention(value: number): void;
   seekToDivergence(): void;
+  /** Fork at the scrub cursor, apply the default intervention, and enter single-target edit. */
+  beginForkAtCursor(): boolean;
+  /** Leave edit mode and resume synced playback from the fork seam. */
+  continueFromFork(): void;
   dispose(): void;
 }
 
@@ -82,6 +86,11 @@ function resolveIntervention(options: CounterfactualOptions): InterventionConfig
   };
 }
 
+function defaultInterventionValue(intervention: InterventionConfig): number {
+  if (intervention.mode === "parameter") return intervention.forkValue;
+  return intervention.defaultEpsilon ?? 1e-8;
+}
+
 function peakInfected(frames: readonly StateFrame[]): { peak: number; day: number } {
   let peak = 0;
   let day = 0;
@@ -102,6 +111,8 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
 
   let stateEpsilon =
     intervention.mode === "state" ? (intervention.defaultEpsilon ?? 1e-8) : 0;
+  let forkEditMode = false;
+  let compareExpanded = false;
   let forkMarker: HTMLElement | null = null;
 
   const ensureForkMarker = () => {
@@ -144,176 +155,83 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
     runtime.seekIndex(target);
   };
 
-  const sync = () => {
+  const beginForkAtCursor = (): boolean => {
+    runtime.pause();
+    const index = runtime.currentIndex();
+    runtime.forkAt(index);
+    applyIntervention(defaultInterventionValue(intervention));
+    runtime.setSyncPlayback(true);
+    forkEditMode = true;
+    compareExpanded = false;
+    sync();
+    return runtime.comparisonRuns.length > 0;
+  };
+
+  const continueFromFork = () => {
     const branch = runtime.comparisonRuns[0];
-    const comparison = runtime.compare();
-    const frame = runtime.currentFrame();
-    const branchFrame = branch?.currentFrame();
-    const unit = runtime.model.time?.unit ?? "s";
+    if (!branch?.forkPoint) return;
+    forkEditMode = false;
+    compareExpanded = false;
+    runtime.seekIndex(branch.forkPoint.index);
+    runtime.play();
+    sync();
+  };
 
-    const marker = ensureForkMarker();
-    if (branch?.forkPoint && runtime.timeline.length > 1) {
-      const pct = (branch.forkPoint.index / Math.max(1, runtime.timeline.length - 1)) * 100;
-      marker.style.left = `${pct}%`;
-      marker.hidden = false;
-      marker.querySelector(".fork-marker-label")!.textContent = `FORK ${branch.forkPoint.time.toFixed(2)}${unit}`;
-    } else {
-      marker.hidden = true;
-    }
-
-    if (elements.divergence) {
-      if (comparison?.divergenceTime != null) {
-        elements.divergence.hidden = false;
-        const mag = comparison.divergenceMagnitude ?? 0;
-        const field = comparison.divergenceField ?? "";
-        elements.divergence.innerHTML = `<span class="divergence-kicker">DIVERGENCE</span><strong>${comparison.divergenceTime.toFixed(2)}${unit}</strong><small>${field} Δ ${mag.toExponential(2)}</small>`;
-      } else {
-        elements.divergence.hidden = true;
-      }
-    }
-
-    elements.panel.replaceChildren();
-
-    if (!branch) {
-      elements.panel.hidden = true;
-      if (elements.hint) {
-        elements.hint.hidden = false;
-        elements.hint.textContent = "Pause, then Fork to explore a different future from the same past.";
-      }
-      return;
-    }
-
-    elements.panel.hidden = false;
-    if (elements.hint) {
-      elements.hint.hidden = true;
-      elements.hint.textContent = "";
-    }
-
+  const renderCompareDetails = (
+    host: HTMLElement,
+    branch: NonNullable<(typeof runtime.comparisonRuns)[0]>,
+    comparison: ReturnType<ComputeRuntime["compare"]>,
+    frame: StateFrame | undefined,
+    branchFrame: StateFrame | undefined,
+    unit: string,
+  ) => {
     const tree = document.createElement("div");
-    tree.className = "branch-tree";
-    if (branch) {
-      tree.innerHTML = `
-        <div class="branch-diagram">
-          <div class="branch-node original">
-            <span class="branch-dot"></span>
-            <span>ORIGINAL</span>
-          </div>
-          <div class="branch-rail">
-            <span class="branch-rail-line"></span>
-            <span class="branch-rail-label">Fork @ ${branch.forkPoint?.time.toFixed(2) ?? "—"}${unit}</span>
-          </div>
-          <div class="branch-node counterfactual">
-            <span class="branch-dot"></span>
-            <span>COUNTERFACTUAL</span>
-          </div>
-        </div>`;
-    }
-    elements.panel.appendChild(tree);
-
-    if (branch && branch.forkPoint) {
-      const interventionBlock = document.createElement("div");
-      interventionBlock.className = "intervention";
-      interventionBlock.innerHTML = `<div class="intervention-kicker">Intervene</div>`;
-
-      if (intervention.mode === "parameter") {
-        const paramDef = runtime.manifest.parameters.find((p) => p.id === intervention.parameterId);
-        const label = intervention.label ?? paramDef?.label ?? intervention.parameterId;
-        const unitLabel = paramDef?.unit ? ` ${paramDef.unit}` : "";
-        const originalValue = runtime.primaryRun.parameters[intervention.parameterId] ?? 0;
-        const counterValue = branch.parameters[intervention.parameterId] ?? originalValue;
-        const min = Number(paramDef?.min ?? 0);
-        const max = Number(paramDef?.max ?? 120);
-        const step = Number(paramDef?.step ?? 1);
-
-        interventionBlock.innerHTML += `
-          <div class="intervention-cards">
-            <div class="state-card original">
-              <span class="state-card-label">Original</span>
-              <code>${label} = ${fmtDay(originalValue)}${unitLabel}</code>
-            </div>
-            <div class="state-card counter">
-              <span class="state-card-label">Counterfactual</span>
-              <code>${label} = ${fmtDay(counterValue)}${unitLabel}</code>
-            </div>
-          </div>
-          <div class="epsilon-block">
-            <label class="epsilon-label">${label}</label>
-            <input class="range epsilon" type="range" min="${min}" max="${max}" step="${step}" value="${counterValue}">
-            <div class="epsilon-readout">${fmtDay(counterValue)}${unitLabel}</div>
-          </div>`;
-
-        const slider = interventionBlock.querySelector<HTMLInputElement>(".epsilon")!;
-        const readout = interventionBlock.querySelector(".epsilon-readout")!;
-        slider.addEventListener("input", () => {
-          const next = Number(slider.value);
-          readout.textContent = `${fmtDay(next)}${unitLabel}`;
-          applyIntervention(next);
-        });
-      } else {
-        const forkIdx = branch.forkPoint.index;
-        const originalState = runtime.primaryRun.timeline.frames[forkIdx]?.state ?? {};
-        const counterState = branch.timeline.frames[forkIdx]?.state ?? {};
-        const field = intervention.perturbField;
-
-        interventionBlock.innerHTML += `
-          <div class="intervention-cards">
-            <div class="state-card original">
-              <span class="state-card-label">Original</span>
-              <code>${field} = ${fmtState(originalState[field] ?? 0)}</code>
-            </div>
-            <div class="state-card counter">
-              <span class="state-card-label">Counterfactual</span>
-              <code>${field} = ${fmtState(counterState[field] ?? 0)}</code>
-            </div>
-          </div>
-          <div class="epsilon-block">
-            <label class="epsilon-label">Perturbation ε on ${field}</label>
-            <input class="range epsilon" type="range" min="-8" max="-2" step="0.1" value="${Math.log10(Math.max(stateEpsilon, 1e-12))}">
-            <div class="epsilon-readout">ε = ${stateEpsilon.toExponential(1)}</div>
-          </div>`;
-
-        const slider = interventionBlock.querySelector<HTMLInputElement>(".epsilon")!;
-        const readout = interventionBlock.querySelector(".epsilon-readout")!;
-        slider.addEventListener("input", () => {
-          const next = 10 ** Number(slider.value);
-          readout.textContent = `ε = ${next.toExponential(1)}`;
-          applyIntervention(next);
-        });
-      }
-
-      elements.panel.appendChild(interventionBlock);
-    }
+    tree.className = "branch-tree fork-compare-tree";
+    tree.innerHTML = `
+      <div class="branch-diagram">
+        <div class="branch-node original">
+          <span class="branch-dot"></span>
+          <span>ORIGINAL</span>
+        </div>
+        <div class="branch-rail">
+          <span class="branch-rail-line"></span>
+          <span class="branch-rail-label">Fork @ ${branch.forkPoint?.time.toFixed(2) ?? "—"}${unit}</span>
+        </div>
+        <div class="branch-node counterfactual">
+          <span class="branch-dot"></span>
+          <span>COUNTERFACTUAL</span>
+        </div>
+      </div>`;
+    host.appendChild(tree);
 
     if (frame) {
-      if (branch) {
-        const inspector = document.createElement("div");
-        inspector.className = "inspector";
-        const keys = runtime.manifest.state;
-        const deltas = comparison?.stateDifferences ?? [];
-        const deltaMap = new Map(deltas.map((d) => [d.key, d]));
+      const inspector = document.createElement("div");
+      inspector.className = "inspector";
+      const keys = runtime.manifest.state;
+      const deltas = comparison?.stateDifferences ?? [];
+      const deltaMap = new Map(deltas.map((d) => [d.key, d]));
 
-        let table = `<table class="inspector-table"><thead><tr><th></th><th>Original</th>`;
-        table += `<th class="col-counter">Counter</th><th class="col-delta">Δ</th>`;
-        table += `</tr></thead><tbody>`;
+      let table = `<table class="inspector-table"><thead><tr><th></th><th>Original</th>`;
+      table += `<th class="col-counter">Counter</th><th class="col-delta">Δ</th>`;
+      table += `</tr></thead><tbody>`;
 
-        for (const key of keys) {
-          const a = frame.state[key];
-          const b = branchFrame?.state[key];
-          const d = deltaMap.get(key);
-          table += `<tr><td>${key}</td>`;
-          table += `<td>${typeof a === "number" ? fmtState(a) : "—"}</td>`;
-          table += `<td class="col-counter">${typeof b === "number" ? fmtState(b) : "—"}</td>`;
-          table += `<td class="col-delta">${d ? fmtDelta(d.delta) : "—"}</td>`;
-          table += `</tr>`;
-        }
-        table += `</tbody></table>`;
-
-        inspector.innerHTML = `<div class="inspector-kicker">At this moment</div><div class="inspector-time">t = ${frame.t.toFixed(2)} ${unit}</div>${table}`;
-        elements.panel.appendChild(inspector);
+      for (const key of keys) {
+        const a = frame.state[key];
+        const b = branchFrame?.state[key];
+        const d = deltaMap.get(key);
+        table += `<tr><td>${key}</td>`;
+        table += `<td>${typeof a === "number" ? fmtState(a) : "—"}</td>`;
+        table += `<td class="col-counter">${typeof b === "number" ? fmtState(b) : "—"}</td>`;
+        table += `<td class="col-delta">${d ? fmtDelta(d.delta) : "—"}</td>`;
+        table += `</tr>`;
       }
+      table += `</tbody></table>`;
+
+      inspector.innerHTML = `<div class="inspector-kicker">At this moment</div><div class="inspector-time">t = ${frame.t.toFixed(2)} ${unit}</div>${table}`;
+      host.appendChild(inspector);
     }
 
-    if (showOutcomes && branch) {
+    if (showOutcomes) {
       const primaryOutcome = peakInfected(runtime.primaryRun.timeline.frames);
       const branchOutcome = peakInfected(branch.timeline.frames);
       const outcomes = document.createElement("div");
@@ -337,8 +255,178 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
             </tr>
           </tbody>
         </table>`;
-      elements.panel.appendChild(outcomes);
+      host.appendChild(outcomes);
     }
+
+    if (comparison?.divergenceTime != null) {
+      const jump = document.createElement("button");
+      jump.type = "button";
+      jump.className = "fork-compare-jump";
+      jump.textContent = `Jump to divergence @ ${comparison.divergenceTime.toFixed(2)}${unit}`;
+      jump.addEventListener("click", seekToDivergence);
+      host.appendChild(jump);
+    }
+  };
+
+  const renderForkSeamEditor = (
+    host: HTMLElement,
+    branch: NonNullable<(typeof runtime.comparisonRuns)[0]>,
+    unit: string,
+  ) => {
+    const seam = document.createElement("div");
+    seam.className = "fork-seam";
+
+    if (intervention.mode === "parameter") {
+      const paramDef = runtime.manifest.parameters.find((p) => p.id === intervention.parameterId);
+      const label = intervention.label ?? paramDef?.label ?? intervention.parameterId;
+      const unitLabel = paramDef?.unit ? ` ${paramDef.unit}` : "";
+      const counterValue = branch.parameters[intervention.parameterId] ?? intervention.forkValue;
+      const min = Number(paramDef?.min ?? 0);
+      const max = Number(paramDef?.max ?? 120);
+      const step = Number(paramDef?.step ?? 1);
+
+      seam.innerHTML = `
+        <div class="fork-seam-head">Change the future from here</div>
+        <div class="fork-seam-meta">Fork @ ${branch.forkPoint?.time.toFixed(2) ?? "—"}${unit}</div>
+        <div class="fork-seam-control">
+          <label class="fork-seam-label">${label}</label>
+          <input class="range epsilon fork-seam-input" type="range" min="${min}" max="${max}" step="${step}" value="${counterValue}">
+          <div class="fork-seam-readout">${fmtDay(counterValue)}${unitLabel}</div>
+        </div>
+        <div class="fork-seam-actions">
+          <button class="control control-accent fork-continue" type="button">Continue</button>
+          <button class="control control-ghost fork-compare-toggle" type="button">Compare</button>
+        </div>`;
+
+      const slider = seam.querySelector<HTMLInputElement>(".fork-seam-input")!;
+      const readout = seam.querySelector(".fork-seam-readout")!;
+      slider.addEventListener("input", () => {
+        const next = Number(slider.value);
+        readout.textContent = `${fmtDay(next)}${unitLabel}`;
+        applyIntervention(next);
+      });
+    } else {
+      const field = intervention.perturbField;
+      seam.innerHTML = `
+        <div class="fork-seam-head">Change the future from here</div>
+        <div class="fork-seam-meta">Fork @ ${branch.forkPoint?.time.toFixed(2) ?? "—"}${unit}</div>
+        <div class="fork-seam-control">
+          <label class="fork-seam-label">Perturbation ε on ${field}</label>
+          <input class="range epsilon fork-seam-input" type="range" min="-8" max="-2" step="0.1" value="${Math.log10(Math.max(stateEpsilon, 1e-12))}">
+          <div class="fork-seam-readout">ε = ${stateEpsilon.toExponential(1)}</div>
+        </div>
+        <div class="fork-seam-actions">
+          <button class="control control-accent fork-continue" type="button">Continue</button>
+          <button class="control control-ghost fork-compare-toggle" type="button">Compare</button>
+        </div>`;
+
+      const slider = seam.querySelector<HTMLInputElement>(".fork-seam-input")!;
+      const readout = seam.querySelector(".fork-seam-readout")!;
+      slider.addEventListener("input", () => {
+        const next = 10 ** Number(slider.value);
+        readout.textContent = `ε = ${next.toExponential(1)}`;
+        applyIntervention(next);
+      });
+    }
+
+    seam.querySelector(".fork-continue")!.addEventListener("click", continueFromFork);
+    seam.querySelector(".fork-compare-toggle")!.addEventListener("click", () => {
+      compareExpanded = !compareExpanded;
+      sync();
+    });
+
+    host.appendChild(seam);
+
+    if (compareExpanded) {
+      const compareHost = document.createElement("div");
+      compareHost.className = "fork-compare-details";
+      renderCompareDetails(
+        compareHost,
+        branch,
+        runtime.compare(),
+        runtime.currentFrame(),
+        branch.currentFrame(),
+        unit,
+      );
+      host.appendChild(compareHost);
+    }
+  };
+
+  const sync = () => {
+    const branch = runtime.comparisonRuns[0];
+    const comparison = runtime.compare();
+    const frame = runtime.currentFrame();
+    const branchFrame = branch?.currentFrame();
+    const unit = runtime.model.time?.unit ?? "s";
+
+    const marker = ensureForkMarker();
+    if (branch?.forkPoint && runtime.timeline.length > 1) {
+      const pct = (branch.forkPoint.index / Math.max(1, runtime.timeline.length - 1)) * 100;
+      marker.style.left = `${pct}%`;
+      marker.hidden = false;
+      marker.querySelector(".fork-marker-label")!.textContent = `FORK ${branch.forkPoint.time.toFixed(2)}${unit}`;
+    } else {
+      marker.hidden = true;
+      forkEditMode = false;
+      compareExpanded = false;
+    }
+
+    if (elements.divergence) {
+      if (branch && comparison?.divergenceTime != null && !forkEditMode) {
+        elements.divergence.hidden = false;
+        const mag = comparison.divergenceMagnitude ?? 0;
+        const field = comparison.divergenceField ?? "";
+        elements.divergence.innerHTML = `<span class="divergence-kicker">COMPARE</span><strong>${comparison.divergenceTime.toFixed(2)}${unit}</strong><small>${field} Δ ${mag.toExponential(2)}</small>`;
+      } else {
+        elements.divergence.hidden = true;
+      }
+    }
+
+    elements.panel.replaceChildren();
+
+    if (!branch) {
+      elements.panel.hidden = true;
+      if (elements.hint) {
+        elements.hint.hidden = false;
+        elements.hint.textContent = "Pause at a moment, then Fork to change one value and continue.";
+      }
+      return;
+    }
+
+    if (elements.hint) {
+      elements.hint.hidden = true;
+      elements.hint.textContent = "";
+    }
+
+    if (forkEditMode) {
+      elements.panel.hidden = false;
+      renderForkSeamEditor(elements.panel, branch, unit);
+      return;
+    }
+
+    if (compareExpanded) {
+      elements.panel.hidden = false;
+      renderCompareDetails(
+        elements.panel,
+        branch,
+        comparison,
+        frame,
+        branchFrame,
+        unit,
+      );
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "control control-ghost fork-compare-close";
+      close.textContent = "Close compare";
+      close.addEventListener("click", () => {
+        compareExpanded = false;
+        sync();
+      });
+      elements.panel.appendChild(close);
+      return;
+    }
+
+    elements.panel.hidden = true;
   };
 
   const unsubscribe = runtime.subscribe((event) => {
@@ -355,7 +443,11 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
   });
 
   if (elements.divergence) {
-    elements.divergence.addEventListener("click", seekToDivergence);
+    elements.divergence.addEventListener("click", () => {
+      if (!runtime.comparisonRuns[0]) return;
+      compareExpanded = !compareExpanded;
+      sync();
+    });
   }
 
   sync();
@@ -364,6 +456,8 @@ export function bindCounterfactualUI(options: CounterfactualOptions): Counterfac
     sync,
     applyIntervention,
     seekToDivergence,
+    beginForkAtCursor,
+    continueFromFork,
     dispose: () => {
       unsubscribe();
       forkMarker?.remove();

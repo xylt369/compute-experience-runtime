@@ -482,6 +482,62 @@ button, input, select { font: inherit; }
   margin-bottom: 12px;
 }
 
+.fork-seam {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fork-seam-head {
+  font-size: 13px;
+  font-weight: 560;
+  color: var(--text);
+}
+
+.fork-seam-meta {
+  font: 10px var(--font-mono);
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.fork-seam-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fork-seam-label {
+  font: 10px var(--font-mono);
+  color: var(--soft);
+}
+
+.fork-seam-readout {
+  font: 12px var(--font-mono);
+  color: var(--text);
+}
+
+.fork-seam-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.fork-seam-actions .fork-continue {
+  flex: 1;
+}
+
+.fork-compare-details {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.fork-compare-jump,
+.fork-compare-close {
+  width: 100%;
+  margin-top: 10px;
+}
+
 .intervention-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -122,16 +122,11 @@ let runtime: ComputeRuntime | null = null;
 let experience: ExperienceHandle | null = null;
 let contract: ExperienceContract | null = null;
 
-function applyForkIntervention() {
-  const intervention = contract?.options?.intervention;
-  if (!intervention || !experience?.counterfactual) return;
-  if (intervention.mode === "parameter" && intervention.forkValue != null) {
-    experience.counterfactual.applyIntervention(intervention.forkValue);
-    return;
-  }
-  if (intervention.mode === "state") {
-    experience.counterfactual.applyIntervention(intervention.defaultEpsilon ?? 1e-8);
-  }
+function handleFork() {
+  if (!runtime || !contract?.capabilities.fork || !experience?.counterfactual) return;
+  if (!experience.counterfactual.beginForkAtCursor()) return;
+  syncBranchActions();
+  flash(els.forkTimeline, "Forked");
 }
 
 function setDrawer(open: boolean) {
@@ -318,18 +313,6 @@ els.conceptInput.addEventListener("keydown", (event) => {
     void compileAndExplore();
   }
 });
-function handleFork() {
-  if (!runtime || !contract?.capabilities.fork) return;
-  runtime.pause();
-  const index = runtime.currentIndex();
-  runtime.forkAt(index);
-  applyForkIntervention();
-  runtime.setSyncPlayback(true);
-  syncBranchActions();
-  experience?.sync();
-  flash(els.forkTimeline, "Forked");
-}
-
 function handleClearBranch() {
   runtime?.clearBranches();
   syncBranchActions();
